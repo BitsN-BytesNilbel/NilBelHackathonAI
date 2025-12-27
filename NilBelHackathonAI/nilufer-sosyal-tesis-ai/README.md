@@ -11,6 +11,13 @@ AI destekli sosyal tesis doluluk tahmin sistemi. Nilüfer Belediyesi'nin 12 fark
 - **REST API**: FastAPI ile backend servisleri
 - **3 Kişilik Takım**: Backend, AI, Frontend ayrımı
 
+### 🆕 QR Sistem Entegrasyonu (Yeni!)
+- **Data Logger**: QR okuma anında gerçek zamanlı veri toplama
+- **Hybrid Training**: Sentetik + gerçek veri birleştirme (Sample Weighting)
+- **Error Tracking**: Model hata takibi ve performans analizi
+- **Auto Retraining**: Her 100 gerçek veri sonrası otomatik model güncelleme
+- **Ground Truth**: QR sisteminden gelen gerçek doluluk verileri
+
 ## 📁 Proje Yapısı
 
 ```
@@ -149,12 +156,23 @@ curl "http://localhost:8000/tum-tesisler-tahmin"
 - `GET /tahmin/{tesis_id}?rezervasyon=10&sinav_vakti=0` - Tek tesis doluluk tahmini
 - `GET /tum-tesisler-tahmin?rezervasyon=10&sinav_vakti=0` - Tüm tesisler doluluk tahminleri
 
+### QR Veri Endpoints (🆕 Yeni!)
+- `POST /qr-log?tesis_id=1&doluluk_orani=75.5&rezervasyon=5` - Tek QR veri kaydı
+- `POST /qr-batch` - Çoklu QR veri kaydı (JSON body)
+
+### Analiz Endpoints (🆕 Yeni!)
+- `GET /performance` - Model performans raporu
+- `GET /error-trends?days=7` - Hata trendleri
+- `GET /data-stats` - Veri istatistikleri
+- `GET /retrain` - Manuel model yeniden eğitimi
+
 ### Sistem Endpoints
 - `GET /istatistikler` - Sistem istatistikleri
 
 ### Query Parameters
 - `rezervasyon` (int): Rezervasyon sayısı (varsayılan: 10)
 - `sinav_vakti` (int): Sınav haftası (0/1, varsayılan: 0)
+- `days` (int): Trend analizi için gün sayısı (varsayılan: 7)
 
 ## 🔐 Environment Variables
 
