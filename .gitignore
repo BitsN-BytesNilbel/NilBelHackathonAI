@@ -205,3 +205,23 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# --- HACKATHON ÖZEL EKLEMELER ---
+
+# Mac Sistem Dosyaları
+.DS_Store
+
+# VS Code Ayarları (Listende yorum satırıydı, aktifleştiriyoruz)
+.vscode/
+
+# AI Model ve Büyük Veri Setleri (GitHub 100MB üstünü reddeder)
+data/
+datasets/
+*.pth
+*.h5
+*.onnx
+*.weights
+
+# Eğer .env dışında dosya kullanırsan
+keys.py
+secrets.json
