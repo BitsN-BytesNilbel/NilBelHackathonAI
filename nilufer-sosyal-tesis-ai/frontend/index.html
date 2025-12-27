@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nilüfer Sosyal Tesis AI</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏛️ Nilüfer Sosyal Tesis Doluluk Tahmini</h1>
+            <p>AI ile sosyal tesislerinizi akıllıca yönetin</p>
+        </header>
+
+        <main>
+            <section class="controls">
+                <div class="control-group">
+                    <label for="rezervasyon">Rezervasyon Sayısı:</label>
+                    <input type="number" id="rezervasyon" value="10" min="0" max="50">
+                </div>
+                <div class="control-group">
+                    <label for="sinav">Sınav Haftası:</label>
+                    <input type="checkbox" id="sinav">
+                </div>
+                <button id="tahmin-btn" onclick="getTumTesislerTahmin()">Tüm Tesisler İçin Tahmin Al</button>
+            </section>
+
+            <section class="results">
+                <h2>Tahmin Sonuçları</h2>
+                <div id="loading" style="display: none;">⏳ Tahmin hesaplanıyor...</div>
+                <div id="results-container"></div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 Nilüfer Belediyesi - AI Destekli Sosyal Tesis Yönetimi</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
