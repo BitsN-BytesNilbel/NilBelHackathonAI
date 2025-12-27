@@ -136,11 +136,25 @@ curl "http://localhost:8000/tum-tesisler-tahmin"
 
 ## 📊 API Endpoints
 
-- `GET /` - Ana sayfa
-- `GET /health` - Sağlık kontrolü
-- `GET /tesisler` - Tüm tesisler
-- `GET /tahmin/{tesis_id}` - Tek tesis tahmini
-- `GET /tum-tesisler-tahmin` - Tüm tesisler tahmini
+### Temel Endpoints
+- `GET /` - API ana sayfası ve bilgi
+- `GET /health` - Sistem sağlık kontrolü
+- `GET /docs` - FastAPI otomatik dokümantasyon
+
+### Tesis Endpoints
+- `GET /tesisler` - Tüm tesislerin listesi
+- `GET /tesis/{tesis_id}` - Belirli tesis bilgileri
+
+### Tahmin Endpoints
+- `GET /tahmin/{tesis_id}?rezervasyon=10&sinav_vakti=0` - Tek tesis doluluk tahmini
+- `GET /tum-tesisler-tahmin?rezervasyon=10&sinav_vakti=0` - Tüm tesisler doluluk tahminleri
+
+### Sistem Endpoints
+- `GET /istatistikler` - Sistem istatistikleri
+
+### Query Parameters
+- `rezervasyon` (int): Rezervasyon sayısı (varsayılan: 10)
+- `sinav_vakti` (int): Sınav haftası (0/1, varsayılan: 0)
 
 ## 🔐 Environment Variables
 
