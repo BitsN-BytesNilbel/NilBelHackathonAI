@@ -7,7 +7,7 @@ from datetime import datetime
 # Yolları ayarla
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from utils.weather_service import get_weather_data
-from utils.data_generator import TESISLER
+from utils.tesisler import TESISLER
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "model.pkl")
 

@@ -44,11 +44,26 @@ nilufer-sosyal-tesis-ai/
 
 ## 🛠️ Kurulum ve Çalıştırma
 
-### 1. Backend Kurulumu
+### Gereksinimler
+- Python 3.8+
+- pip
+
+### 1. Bağımlılıkları Yükleme
+
+```bash
+# Ana bağımlılıkları yükle (pandas, numpy, scikit-learn, vb.)
+pip install -r requirements.txt
+
+# Backend için ek bağımlılıkları yükle
+cd backend
+pip install -r requirements.txt
+cd ..
+```
+
+### 2. Backend Çalıştırma
 
 ```bash
 cd backend
-pip install -r requirements.txt
 python app.py
 ```
 
