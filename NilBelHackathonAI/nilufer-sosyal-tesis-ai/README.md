@@ -1,6 +1,21 @@
-# Nilüfer Sosyal Tesis AI Sistemi
+# Nilüfer Sosyal Tesis Doluluk Tahmin ve Yönlendirme Platformu
 
-AI destekli sosyal tesis doluluk tahmin sistemi. Nilüfer Belediyesi'nin 12 farklı sosyal tesisinin doluluk oranlarını gerçek zamanlı olarak tahmin eder.
+## 🎯 Proje Amacı
+
+Bu projenin amacı; Nilüfer Belediyesi'ne ait sosyal tesislerin anlık ve geleceğe dönük doluluk oranlarını hem vatandaşlar hem de belediye yönetimi için şeffaf, öngörülebilir ve optimize edilebilir hale getirmektir.
+
+Geliştirilecek sistem sayesinde:
+- **Vatandaşlar** en uygun sosyal tesisi kolayca seçebilecek
+- **Belediye** tesislerini daha dengeli ve verimli yönetecek
+- **Yapay zeka** destekli tahmin mekanizması zamanla kendini geliştirecektir
+
+## 🏗️ Sistem Mimarisi
+
+Proje üç ana bileşenden oluşmaktadır:
+
+### 1. Web Platformu (WPA) - Vatandaş Arayüzü
+### 2. Yapay Zeka ve Tahmin Sistemi
+### 3. Gerçek Veri Toplama ve Geri Besleme Mekanizması (QR Sistemi)
 
 ## 🚀 Özellikler
 
