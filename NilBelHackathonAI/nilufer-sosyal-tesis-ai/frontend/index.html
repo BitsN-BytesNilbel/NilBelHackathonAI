@@ -1,156 +1,120 @@
 <!DOCTYPE html>
 <html lang="tr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nilüfer Sosyal Tesis AI - Vatandaş Platformu</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
+
 <body>
     <div class="container">
-        <header>
-            <h1>🏛️ Nilüfer Sosyal Tesis AI Platformu</h1>
-            <p>Akıllı tesis önerileri ve rezervasyon sistemi</p>
-        </header>
+        <section id="auth-panel" class="controls" style="max-width: 450px; margin: 80px auto; text-align: center;">
+            <h2 style="margin-bottom: 20px; color: #764ba2;">🏛️ Üye Girişi</h2>
+            <div class="control-group">
+                <label>Nickname:</label>
+                <input type="text" id="username" placeholder="Nickname giriniz...">
+            </div>
+            <div class="control-group" style="margin-top: 15px;">
+                <label>Şifre:</label>
+                <input type="password" id="password" placeholder="Şifre giriniz...">
+            </div>
+            <button onclick="handleLogin()" style="width: 100%; margin-top: 25px; padding: 15px;">Giriş Yap / Kayıt
+                Ol</button>
+        </section>
 
-        <nav class="nav-tabs">
-            <button class="tab-btn active" onclick="showTab('akilli-siralama')">Akıllı Öneriler</button>
-            <button class="tab-btn" onclick="showTab('tum-tesisler')">Tüm Tesisler</button>
-            <button class="tab-btn" onclick="showTab('etkinlikler')">Etkinlikler</button>
-            <button class="tab-btn" onclick="showTab('rezervasyonlar')">Rezervasyonlarım</button>
-        </nav>
+        <div id="main-app" style="display: none;">
+            <header>
+                <h1>🏛️ Nilüfer Sosyal Tesis AI Platformu</h1>
+                <p>Akıllı tesis önerileri ve rezervasyon sistemi</p>
+                <p style="margin-top:10px;">Hoş geldin, <b id="display-name" style="color: #ffc107;"></b></p>
+            </header>
 
-        <main>
-            <!-- Akıllı Sıralama Tab -->
-            <section id="akilli-siralama" class="tab-content active">
-                <div class="controls">
-                    <div class="control-row">
-                        <div class="control-group">
-                            <label for="konum">Konumunuzu paylaşın:</label>
-                            <button onclick="getLocation()" id="location-btn">📍 Konum Al</button>
-                        </div>
-                        <div class="control-group">
-                            <label for="tesis-tercih">Tercih edilen tesis türü:</label>
-                            <select id="tesis-tercih">
-                                <option value="">Tümü</option>
-                                <option value="kütüphane">Kütüphane</option>
-                                <option value="müze">Müze</option>
-                                <option value="kafe">Kafe</option>
-                                <option value="lokanta">Lokanta</option>
-                                <option value="gençlik merkezi">Gençlik Merkezi</option>
-                            </select>
-                        </div>
-                        <div class="control-group">
-                            <label for="onerilen-sayi">Öneri sayısı:</label>
-                            <select id="onerilen-sayi">
-                                <option value="3">3</option>
-                                <option value="5" selected>5</option>
-                                <option value="10">10</option>
-                            </select>
-                        </div>
-                    </div>
-                    <button id="akilli-btn" onclick="getAkıllıSiralama()">Akıllı Öneriler Al</button>
-                </div>
-                <div class="results">
-                    <h2>🎯 Size Özel Öneriler</h2>
-                    <div id="loading" style="display: none;">⏳ Öneriler hesaplanıyor...</div>
-                    <div id="akilli-results" class="results-container"></div>
-                </div>
-            </section>
+            <nav class="nav-tabs">
+                <button class="tab-btn active" onclick="showTab('akilli-siralama')">Akıllı Öneriler</button>
+                <button class="tab-btn" onclick="showTab('tum-tesisler')">Tüm Tesisler</button>
+                <button class="tab-btn" onclick="showTab('qr-giris')">QR Giriş</button>
+                <button class="tab-btn" onclick="showTab('rezervasyonlar')">Rezervasyonlarım</button>
+            </nav>
 
-            <!-- Tüm Tesisler Tab -->
-            <section id="tum-tesisler" class="tab-content">
-                <div class="controls">
-                    <div class="control-row">
-                        <div class="control-group">
-                            <label for="rezervasyon">Rezervasyon sayısı:</label>
-                            <input type="number" id="rezervasyon" value="10" min="0" max="50">
-                        </div>
-                        <div class="control-group">
-                            <label for="sinav">Sınav haftası:</label>
-                            <input type="checkbox" id="sinav">
-                        </div>
-                    </div>
-                    <button id="tahmin-btn" onclick="getTumTesislerTahmin()">Tüm Tesisler İçin Tahmin Al</button>
-                </div>
-                <div class="results">
-                    <h2>📊 Tüm Tesis Doluluk Tahminleri</h2>
-                    <div id="tum-tesis-loading" style="display: none;">⏳ Tahmin hesaplanıyor...</div>
-                    <div id="tum-tesis-results" class="results-container"></div>
-                </div>
-            </section>
-
-            <!-- Etkinlikler Tab -->
-            <section id="etkinlikler" class="tab-content">
-                <div class="controls">
-                    <div class="control-group">
-                        <label for="etkinlik-gun">Tarih seçin:</label>
-                        <input type="date" id="etkinlik-gun">
-                    </div>
-                    <button onclick="getEtkinlikler()">Etkinlikleri Getir</button>
-                </div>
-                <div class="results">
-                    <h2>🎪 Etkinlikler</h2>
-                    <div id="etkinlik-results" class="results-container"></div>
-                </div>
-            </section>
-
-            <!-- Rezervasyonlar Tab -->
-            <section id="rezervasyonlar" class="tab-content">
-                <div class="controls">
-                    <h3>Yeni Rezervasyon</h3>
-                    <div class="reservation-form">
+            <main>
+                <section id="akilli-siralama" class="tab-content active">
+                    <div class="controls">
                         <div class="control-row">
                             <div class="control-group">
-                                <label for="rez-user-id">Kullanıcı ID:</label>
-                                <input type="text" id="rez-user-id" placeholder="user123">
+                                <label>Konum Al:</label>
+                                <button onclick="getLocation()" id="location-btn">📍 Konum Paylaş</button>
                             </div>
                             <div class="control-group">
-                                <label for="rez-tesis-id">Tesis:</label>
-                                <select id="rez-tesis-id">
-                                    <option value="">Tesis seçin</option>
+                                <label>Tesis Türü:</label>
+                                <select id="tesis-tercih">
+                                    <option value="">Tümü</option>
+                                    <option value="kütüphane">Kütüphane</option>
+                                    <option value="kafe">Kafe</option>
+                                    <option value="lokanta">Lokanta</option>
                                 </select>
                             </div>
                         </div>
-                        <div class="control-row">
-                            <div class="control-group">
-                                <label for="rez-tarih">Tarih:</label>
-                                <input type="date" id="rez-tarih">
-                            </div>
-                            <div class="control-group">
-                                <label for="rez-saat">Saat:</label>
-                                <input type="number" id="rez-saat" min="9" max="21" value="14">
-                            </div>
-                            <div class="control-group">
-                                <label for="rez-sure">Süre (saat):</label>
-                                <input type="number" id="rez-sure" min="1" max="8" value="2">
-                            </div>
-                            <div class="control-group">
-                                <label for="rez-kisi">Kişi sayısı:</label>
-                                <input type="number" id="rez-kisi" min="1" max="50" value="2">
-                            </div>
+                        <button id="akilli-btn" onclick="getAkıllıSiralama()">Önerileri Göster</button>
+                    </div>
+                    <div class="results">
+                        <h2>🎯 Size Özel Öneriler</h2>
+                        <div id="akilli-results" class="results-container"></div>
+                    </div>
+                </section>
+
+                <section id="tum-tesisler" class="tab-content">
+                    <div class="results">
+                        <h2>📊 Güncel Tesis Doluluk Tahminleri</h2>
+                        <div id="tum-tesis-results" class="results-container"></div>
+                    </div>
+                </section>
+
+                <section id="qr-giris" class="tab-content">
+                    <div class="controls" style="text-align: center;">
+                        <h2>📷 QR Kod Okutun</h2>
+                        <p style="margin-bottom: 20px; color: #666;">Tesis girişindeki kodu kameraya gösterin</p>
+                        <div id="reader"
+                            style="width: 100%; max-width: 500px; margin: 0 auto; border-radius: 15px; overflow: hidden; border: 2px solid #764ba2;">
                         </div>
-                        <button onclick="createReservation()">Rezervasyon Oluştur</button>
+                        <div id="qr-status-text" style="margin-top: 15px; font-weight: bold; color: #28a745;"></div>
                     </div>
-                </div>
-                <div class="results">
-                    <h2>📅 Rezervasyonlarım</h2>
-                    <div class="control-group">
-                        <label for="rez-user-lookup">Rezervasyonlarımı gör:</label>
-                        <input type="text" id="rez-user-lookup" placeholder="Kullanıcı ID">
-                        <button onclick="getUserReservations()">Getir</button>
-                    </div>
-                    <div id="rezervasyon-results" class="results-container"></div>
-                </div>
-            </section>
-        </main>
+                </section>
 
-        <footer>
-            <p>&copy; 2025 Nilüfer Belediyesi - AI Destekli Sosyal Tesis Yönetimi</p>
-            <p><small>Bu platform vatandaşların daha iyi tesis seçimi yapmasını sağlar.</small></p>
-        </footer>
+                <section id="rezervasyonlar" class="tab-content">
+                    <div class="controls">
+                        <h3>📅 Yeni Rezervasyon</h3>
+                        <div class="reservation-form">
+                            <div class="control-row">
+                                <div class="control-group">
+                                    <label>Tesis Seç:</label>
+                                    <select id="rez-tesis-id">
+                                        <option value="">Yükleniyor...</option>
+                                    </select>
+                                </div>
+                                <div class="control-group">
+                                    <label>Tarih:</label>
+                                    <input type="date" id="rez-tarih">
+                                </div>
+                                <div class="control-group">
+                                    <label>Saat:</label>
+                                    <input type="number" id="rez-saat" min="9" max="21" value="14">
+                                </div>
+                            </div>
+                            <button onclick="createReservation()" style="margin-top: 10px;">Rezervasyon Yap</button>
+                        </div>
+                    </div>
+                    <div class="results">
+                        <h2>📋 Geçmiş Rezervasyonlarım</h2>
+                        <div id="rezervasyon-results" class="results-container"></div>
+                    </div>
+                </section>
+            </main>
+        </div>
     </div>
-
     <script src="script.js"></script>
 </body>
+
 </html>
