@@ -6,6 +6,7 @@ let map = null;
 let userLocationMarker = null;
 let allMarkers = [];
 let currentFilter = '';
+let cachedTesisler = null; // Tesis verilerini cache'le
 
 // 1. GİRİŞ SİSTEMİ - BACKEND İLE ENTEGRASYON
 async function handleLogin() {
@@ -226,17 +227,25 @@ async function getDailyStats() {
     }
 }
 
-// 2. TESİS LİSTESİ (Dropdown Düzeltmesi)
+// 2. TESİS LİSTESİ (Dropdown Düzeltmesi) - CACHE İLE OPTİMİZE
 async function loadTesisler() {
     const select = document.getElementById('rez-tesis-id');
+
     try {
-        const res = await fetch(`${API_BASE}/tesisler`);
-        const data = await res.json();
+        // Cache'den veri al veya API'den çek
+        let data;
+        if (cachedTesisler) {
+            data = cachedTesisler;
+        } else {
+            const res = await fetch(`${API_BASE}/tesisler`);
+            data = await res.json();
+            cachedTesisler = data; // Cache'e kaydet
+        }
 
         select.innerHTML = '<option value="">Seçim yapınız...</option>';
         data.tesisler.forEach(t => {
             let opt = document.createElement('option');
-            opt.value = t.id;
+            opt.value = t.tesis_id || t.id;
             opt.textContent = t.isim;
             select.appendChild(opt);
         });
@@ -365,17 +374,28 @@ function initializeMap() {
     loadTesisMarkers();
 }
 
-// Tesis işaretlerini yükle
+// Tesis işaretlerini yükle - CACHE OPTİMİZE
 async function loadTesisMarkers() {
     try {
-        const response = await fetch(`${API_BASE}/tesisler`);
-        const data = await response.json();
+        // Cache'den veri al veya API'den çek
+        let data;
+        if (cachedTesisler) {
+            data = cachedTesisler;
+        } else {
+            const response = await fetch(`${API_BASE}/tesisler`);
+            data = await response.json();
+            cachedTesisler = data; // Cache'e kaydet
+        }
+
+        // Önceki marker'ları temizle
+        allMarkers.forEach(marker => map.removeLayer(marker));
+        allMarkers = [];
 
         data.tesisler.forEach(tesis => {
             if (tesis.koordinat) {
                 const markerColor = markerColors[tesis.tesis_tipi] || 'blue';
 
-                // Özel marker icon'u oluştur
+                // Özel marker icon'u oluştur (performans için önceden hesapla)
                 const icon = L.divIcon({
                     className: 'custom-marker',
                     html: `<div style="background-color: ${markerColor}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>`,

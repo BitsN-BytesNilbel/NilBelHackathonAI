@@ -10,12 +10,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 # Mevcut importların korunması
 from ai.predict import predict_occupancy
 from utils.tesisler import TESISLER, get_tesis_by_id
-from utils.datalogger import log_qr_entry, log_real_data_entry
-from utils.data_aggregator import aggregator
-from ai.error_tracker import error_tracker
+# Sadece kullanılan modülleri import et (performans için)
+from utils.datalogger import log_real_data_entry
 from utils.smart_ranking import smart_ranking
-from utils.events import event_manager
-from utils.reservations import reservation_system
 
 router = APIRouter()
 
@@ -43,34 +40,7 @@ async def login(data: LoginRequest):
     else:
         raise HTTPException(status_code=401, detail="E-posta veya şifre hatalı")
 
-# ========== QR VE VERİ YÖNETİMİ ==========
-
-@router.post("/qr-log")
-def log_qr_data(tesis_id: int, doluluk_orani: float, rezervasyon: Optional[int] = 0):
-    """QR kod okuma verisini kaydeder"""
-    try:
-        result = log_qr_entry(tesis_id, {"doluluk_orani": doluluk_orani, "rezervasyon": rezervasyon})
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"QR log hatası: {str(e)}")
-
-@router.post("/qr-batch")
-def log_qr_batch(qr_data: list):
-    """Çoklu QR verisini işler ve kaydeder"""
-    try:
-        results = []
-        for item in qr_data:
-            result = log_qr_entry(
-                item["tesis_id"],
-                {
-                    "doluluk_orani": item["doluluk_orani"],
-                    "rezervasyon": item.get("rezervasyon", 0)
-                }
-            )
-            results.append(result)
-        return {"processed": len(results), "results": results}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Batch QR log hatası: {str(e)}")
+# ========== GERÇEK VERİ YÖNETİMİ ==========
 
 @router.post("/log-real-data")
 def log_real_data_endpoint(data: dict):
@@ -98,15 +68,6 @@ def log_real_data_endpoint(data: dict):
         raise HTTPException(status_code=500, detail=f"Gerçek veri log hatası: {str(e)}")
 
 # ========== ANALİZ VE PERFORMANS ==========
-
-@router.get("/performance")
-def get_model_performance():
-    """Model performans raporu (Tahmin vs Gerçek)"""
-    try:
-        report = error_tracker.generate_performance_report()
-        return report
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Performans raporu hatası: {str(e)}")
 
 @router.get("/retrain")
 def trigger_retrain():
