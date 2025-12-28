@@ -53,8 +53,13 @@ class SmartRanking:
         facility_scores = []
 
         # Kategori filtresi: Eğer tercih edilen tür varsa, sadece o türleri öner
-        if preferred_types and len(preferred_types) > 0:
-            filtered_tesisler = [t for t in TESISLER if t["tesis_tipi"] in preferred_types]
+        if preferred_types:
+            # Boş stringleri filtrele
+            valid_types = [t for t in preferred_types if t.strip()]
+            if valid_types:
+                filtered_tesisler = [t for t in TESISLER if t["tesis_tipi"] in valid_types]
+            else:
+                filtered_tesisler = TESISLER  # Geçerli tür yok, tümünü göster
         else:
             filtered_tesisler = TESISLER
 
@@ -88,8 +93,19 @@ class SmartRanking:
                 print(f"Tesis {tesis['tesis_id']} sıralama hatası: {e}")
                 continue
 
-        # Skora göre sırala (düşük skor = daha iyi öneri)
-        ranked = sorted(facility_scores, key=lambda x: x["total_score"])
+        # Doluluk oranına göre sırala (düşük doluluk = daha iyi, artan sırada)
+        def get_occupancy_rate(facility):
+            try:
+                # Doluluk oranını al ve sayısal değere çevir
+                doluluk_str = facility["prediction"]["doluluk"]
+                doluluk_rate = float(doluluk_str.replace('%', ''))
+                return doluluk_rate
+            except (ValueError, TypeError, KeyError):
+                # Hata durumunda en yüksek doluluk olarak kabul et (en alta sırala)
+                return 999
+
+        # Doluluk oranına göre artan sırada sırala (düşük doluluk önce)
+        ranked = sorted(facility_scores, key=get_occupancy_rate)
 
         return ranked[:top_n]
 
@@ -101,30 +117,30 @@ class SmartRanking:
 
         factors = {}
 
-        # 1. Doluluk faktörü (düşük doluluk = yüksek skor)
-        factors["doluluk_orani"] = doluluk_orani / 100.0  # 0-1 arası
+        # 1. Doluluk faktörü (düşük doluluk = yüksek skor, yüksek değer = iyi)
+        factors["doluluk_orani"] = 1 - (doluluk_orani / 100.0)  # 1 = boş, 0 = dolu
 
-        # 2. Mesafe faktörü (şimdilik rastgele, gerçek uygulamada GPS)
+        # 2. Mesafe faktörü (yakın = yüksek skor)
         if user_location:
             # Bursa merkez koordinatları
             bursa_center = (40.1885, 29.0610)
             distance = self._calculate_distance(user_location, bursa_center)
-            factors["mesafe"] = min(distance / 10.0, 1.0)  # Max 10km
+            factors["mesafe"] = 1 - min(distance / 10.0, 1.0)  # Yakın = yüksek değer
         else:
             factors["mesafe"] = random.uniform(0.1, 0.9)
 
-        # 3. Tesis türü tercihi
+        # 3. Tesis türü tercihi (tercih edilen = yüksek skor)
         if preferred_types and tesis["tesis_tipi"] in preferred_types:
-            factors["tesis_turu"] = 0.0  # Tercih edilen tür = yüksek öncelik
+            factors["tesis_turu"] = 1.0  # Tercih edilen tür = yüksek öncelik
         else:
-            factors["tesis_turu"] = 0.5  # Nötr
+            factors["tesis_turu"] = 0.0  # Nötr
 
         # 4. Etkinlik etkisi
         today_str = current_time.strftime("%Y-%m-%d")
         event_impact = event_manager.get_event_impact(tesis["tesis_id"], today_str)
         factors["etkinlik"] = event_impact
 
-        # 5. Genel memnuniyet puanı (şimdilik rastgele, gerçek uygulamada gerçek veriler)
+        # 5. Genel memnuniyet puanı (yüksek = iyi)
         factors["puan"] = random.uniform(0.3, 0.9)
 
         return factors

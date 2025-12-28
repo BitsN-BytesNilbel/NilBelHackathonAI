@@ -122,7 +122,7 @@ async function getTumTesislerTahmin() {
                 <div class="result-item" style="border-left: 5px solid ${t.doluluk_orani > 0.7 ? '#ff4b2b' : '#28a745'}">
                     <h3>🏛️ ${t.isim}</h3>
                     <p><strong>Tahmini Doluluk:</strong> %${dolulukYuzde}</p>
-                    <p><strong>Durum:</strong> ${t.durum} | 🌡️ ${t.sicaklik}°C</p>
+                    <p><strong>Durum:</strong> ${t.durum} | 🌡️ ${t.sicaklik}</p>
                 </div>`;
         });
     } catch (e) {
