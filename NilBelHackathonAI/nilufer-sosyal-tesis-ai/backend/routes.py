@@ -5,6 +5,11 @@ import sys
 import os
 from datetime import datetime # EKLEME: Zaman verisi için
 
+# Login için model
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
 # Yolları ayarla
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -18,6 +23,20 @@ from utils.events import event_manager
 from utils.reservations import reservation_system
 
 router = APIRouter()
+
+# Login endpoint
+@router.post("/login")
+async def login(request: LoginRequest):
+    # Belirtilen giriş bilgileri kontrolü
+    valid_credentials = {
+        "vatandas@gmail.com": "12345",
+        "admin@nilufer.bel.tr": "nilufer16"
+    }
+
+    if request.username in valid_credentials and request.password == valid_credentials[request.username]:
+        return {"status": "success", "message": "Giriş başarılı", "user_id": request.username}
+    else:
+        raise HTTPException(status_code=401, detail="Geçersiz kullanıcı adı veya şifre")
 
 # QR Giriş isteği için veri modeli
 class QRRequest(BaseModel):
@@ -129,3 +148,143 @@ def get_all_predictions():
         return results
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Toplu tahmin ana hatası: {str(e)}")
+
+# ========== REZERVASYON ENDPOINTLERİ ==========
+
+class ReservationRequest(BaseModel):
+    user_id: str
+    tesis_id: int
+    tarih: str
+    saat: int
+    sure: int = 2  # Default 2 saat
+    kisi_sayisi: int = 1  # Default 1 kişi
+
+@router.post("/rezervasyon-olustur")
+async def create_reservation_endpoint(request: ReservationRequest):
+    try:
+        user_data = {
+            "user_id": request.user_id,
+            "tesis_id": request.tesis_id,
+            "tarih": request.tarih,
+            "saat": request.saat,
+            "sure": request.sure,
+            "kisi_sayisi": request.kisi_sayisi
+        }
+
+        result = reservation_system.create_reservation(user_data)
+        if result["status"] == "success":
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Rezervasyon oluşturma hatası: {str(e)}")
+
+@router.get("/rezervasyonlarim/{user_id}")
+async def get_user_reservations_endpoint(user_id: str):
+    try:
+        reservations = reservation_system.get_user_reservations(user_id)
+        return {"rezervasyonlar": reservations}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Rezervasyon getirme hatası: {str(e)}")
+
+# ========== BELEDİYE YÖNETİM ENDPOINTLERİ ==========
+
+@router.get("/belediye/tum-rezervasyonlar")
+async def get_all_reservations():
+    try:
+        # Tüm rezervasyonları döndür
+        all_reservations = []
+        for user in set(r["user_id"] for r in reservation_system.reservations):
+            user_res = reservation_system.get_user_reservations(user)
+            all_reservations.extend(user_res)
+        return {"tum_rezervasyonlar": all_reservations}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Tüm rezervasyonları getirme hatası: {str(e)}")
+
+@router.get("/belediye/istatistikler")
+async def get_reservation_stats():
+    try:
+        stats = reservation_system.get_reservation_stats()
+        return {"istatistikler": stats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"İstatistik getirme hatası: {str(e)}")
+
+@router.get("/belediye/yuk-dengeleme")
+async def get_load_balancing_analysis():
+    try:
+        # Basit yük dengeleme analizi: tesislerin doluluk oranlarına göre
+        from utils.tesisler import TESISLER
+        analysis = []
+        for tesis in TESISLER:
+            prediction = predict_occupancy(tesis["tesis_id"])
+            analysis.append({
+                "tesis_id": tesis["tesis_id"],
+                "tesis_adi": tesis["isim"],
+                "doluluk_orani": prediction.get("doluluk", 0.5),
+                "durum": prediction.get("durum", "Bilinmiyor"),
+                "oneri": "Yüksek doluluk" if prediction.get("doluluk", 0) > 0.8 else "Normal"
+            })
+        return {"yuk_dengeleme_analizi": analysis}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Yük dengeleme analizi hatası: {str(e)}")
+
+@router.get("/belediye/performans-raporu")
+async def get_performance_report():
+    try:
+        # Performans raporu: genel sistem durumu
+        report = {
+            "toplam_tesis": len(TESISLER),
+            "toplam_rezervasyon": len(reservation_system.reservations),
+            "aktif_rezervasyon": len([r for r in reservation_system.reservations if r["durum"] == "aktif"]),
+            "sistem_durumu": "Çalışıyor",
+            "son_guncelleme": datetime.now().isoformat()
+        }
+        return {"performans_raporu": report}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Performans raporu hatası: {str(e)}")
+
+@router.post("/belediye/model-egitim")
+async def retrain_model():
+    try:
+        # Model yeniden eğitimi simülasyonu
+        # Gerçekte train_model.py'yi çalıştırır
+        import subprocess
+        result = subprocess.run(["python", "ai/train_model.py"], capture_output=True, text=True)
+        if result.returncode == 0:
+            return {"status": "success", "message": "Model yeniden eğitildi"}
+        else:
+            raise HTTPException(status_code=500, detail=f"Model eğitimi başarısız: {result.stderr}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Model eğitimi hatası: {str(e)}")
+
+@router.get("/belediye/gunluk-istatistikler")
+async def get_daily_stats():
+    try:
+        # Günlük istatistikler: basit örnek
+        today = datetime.now().date()
+        today_reservations = [r for r in reservation_system.reservations if r["tarih"] == str(today)]
+        stats = {
+            "tarih": str(today),
+            "gunluk_rezervasyon": len(today_reservations),
+            "gunluk_giris": 0,  # QR giriş loglarından hesaplanabilir
+            "en_populer_tesis": "Tesis 1"  # Basit örnek
+        }
+        return {"gunluk_istatistikler": stats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Günlük istatistik hatası: {str(e)}")
+
+@router.get("/belediye/tesis-qr-yonetimi")
+async def get_facility_qr_management():
+    try:
+        # Tesis QR yönetimi: her tesis için QR kod bilgisi
+        qr_info = []
+        for tesis in TESISLER:
+            qr_info.append({
+                "tesis_id": tesis["tesis_id"],
+                "tesis_adi": tesis["isim"],
+                "qr_kod": f"QR_{tesis['tesis_id']}",
+                "aktif": True
+            })
+        return {"tesis_qr_yonetimi": qr_info}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Tesis QR yönetimi hatası: {str(e)}")

@@ -4,60 +4,50 @@ const API_BASE = API_URL; // İsim karmaşasını önlemek için eşitledik
 let userNickname = null;
 let html5QrScanner = null;
 
-// --- 2. ADIM: TÜM TESİSLERİ YÜKLEME FONKSİYONU ---
-async function tumTesisleriYukle() {
-    const container = document.getElementById("tesis-listesi"); 
-    if (!container) return; 
-
-    try {
-        const response = await fetch(`${API_URL}/tum-tesisler-tahmin`);
-        const data = await response.json();
-        
-        container.innerHTML = ""; 
-        
-        // Backend direkt liste [] döndürdüğü için direkt data üzerinden dönüyoruz
-        data.forEach(tesis => {
-            const dolulukYuzde = (tesis.doluluk_orani * 100).toFixed(0);
-            container.innerHTML += `
-                <div class="tesis-kart">
-                    <h3>${tesis.isim}</h3>
-                    <div class="doluluk-bari">
-                        <div class="doluluk-dolgu" style="width: ${dolulukYuzde}%"></div>
-                    </div>
-                    <p>Doluluk: %${dolulukYuzde}</p>
-                    <span class="durum-badge ${tesis.durum.toLowerCase()}">${tesis.durum}</span>
-                    <p class="hava-durumu">🌡️ ${tesis.sicaklik}°C</p>
-                </div>`;
-        });
-    } catch (error) {
-        console.error("Backend hatası:", error);
-        container.innerHTML = "<p style='color:red;'>Veriler backendden çekilemedi.</p>";
-    }
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    tumTesisleriYukle();
-});
+// Sayfa yüklendiğinde hiçbir şey yapma, giriş sonrası veri çekilecek
 
 // 1. GİRİŞ SİSTEMİ
-function handleLogin() {
-    const nick = document.getElementById('username').value;
+async function handleLogin() {
+    const email = document.getElementById('email').value;
     const pass = document.getElementById('password').value;
+    const errorEl = document.getElementById('login-error');
 
-    if (!nick || !pass) {
-        alert("Lütfen tüm alanları doldurun!");
+    if (!email || !pass) {
+        errorEl.textContent = "Lütfen tüm alanları doldurun!";
+        errorEl.style.display = 'block';
         return;
     }
 
-    userNickname = nick;
-    document.getElementById('auth-panel').style.display = 'none';
-    document.getElementById('main-app').style.display = 'block';
-    document.getElementById('display-name').textContent = nick;
+    try {
+        const response = await fetch(`${API_BASE}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: email, password: pass })
+        });
+        const data = await response.json();
 
-    // Fonksiyonun içine düzgünce yerleştirildi
-    loadUserReservations();
-    loadTesisler();
-    getTumTesislerTahmin();
+        if (data.status === 'success') {
+            userNickname = email;
+            document.getElementById('auth-panel').style.display = 'none';
+            document.getElementById('main-app').style.display = 'block';
+            document.getElementById('display-name').textContent = email;
+
+            // Admin için belediye panelini göster
+            if (email === 'admin@nilufer.bel.tr') {
+                document.getElementById('belediye-tab').style.display = 'inline-block';
+            }
+
+            loadUserReservations();
+            loadTesisler();
+            getTumTesislerTahmin();
+        } else {
+            errorEl.textContent = "Giriş başarısız: " + data.message;
+            errorEl.style.display = 'block';
+        }
+    } catch (error) {
+        errorEl.textContent = "Backend'e bağlanılamadı: " + error.message;
+        errorEl.style.display = 'block';
+    }
 }
 
 // 2. TESİS LİSTESİ (Dropdown Düzeltmesi)
@@ -207,6 +197,141 @@ async function loadUserReservations() {
         }
         data.rezervasyonlar.forEach(r => {
             container.innerHTML += `<div class="result-item"><strong>${r.tesis_adi}</strong><br>${r.tarih} - Saat: ${r.saat}:00</div>`;
+        });
+    } catch (e) { container.innerHTML = 'Yüklenemedi.'; }
+}
+
+// 9. BELEDİYE FONKSİYONLARI
+async function loadAllReservations() {
+    const container = document.getElementById('belediye-results');
+    try {
+        const res = await fetch(`${API_BASE}/belediye/tum-rezervasyonlar`);
+        const data = await res.json();
+        container.innerHTML = '<h3>Tüm Rezervasyonlar</h3>';
+        if (data.tum_rezervasyonlar.length === 0) {
+            container.innerHTML += '<p>Henüz rezervasyon yok.</p>';
+            return;
+        }
+        data.tum_rezervasyonlar.forEach(r => {
+            container.innerHTML += `<div class="result-item"><strong>${r.tesis_adi}</strong><br>Kullanıcı: ${r.user_id}<br>${r.tarih} - Saat: ${r.saat}:00<br>Durum: ${r.durum}</div>`;
+        });
+    } catch (e) { container.innerHTML = 'Yüklenemedi.'; }
+}
+
+async function loadReservationStats() {
+    const container = document.getElementById('belediye-results');
+    try {
+        const res = await fetch(`${API_BASE}/belediye/istatistikler`);
+        const data = await res.json();
+        container.innerHTML = '<h3>Rezervasyon İstatistikleri</h3>';
+        const stats = data.istatistikler;
+        container.innerHTML += `
+            <div class="result-item">
+                <strong>Toplam Rezervasyon:</strong> ${stats.toplam_rezervasyon}<br>
+                <strong>Aktif Rezervasyon:</strong> ${stats.aktif_rezervasyon}<br>
+                <strong>İptal Rezervasyon:</strong> ${stats.iptal_rezervasyon}
+            </div>
+        `;
+        // Tesis bazlı istatistikler
+        container.innerHTML += '<h4>Tesis Bazlı İstatistikler</h4>';
+        for (const [tesisId, count] of Object.entries(stats.tesis_bazli)) {
+            container.innerHTML += `<div class="result-item"><strong>Tesis ${tesisId}:</strong> ${count} rezervasyon</div>`;
+        }
+    } catch (e) { container.innerHTML = 'Yüklenemedi.'; }
+}
+
+// YÜK DENGELEME ANALİZİ
+async function loadBalancingAnalysis() {
+    const container = document.getElementById('belediye-results');
+    try {
+        const res = await fetch(`${API_BASE}/belediye/yuk-dengeleme`);
+        const data = await res.json();
+        container.innerHTML = '<h3>Yük Dengeleme Analizi</h3>';
+        data.yuk_dengeleme_analizi.forEach(item => {
+            const color = item.doluluk_orani > 0.8 ? '#ff4b2b' : item.doluluk_orani > 0.6 ? '#ffc107' : '#28a745';
+            container.innerHTML += `
+                <div class="result-item" style="border-left: 5px solid ${color}">
+                    <strong>${item.tesis_adi}</strong><br>
+                    Doluluk: %${(item.doluluk_orani * 100).toFixed(0)}<br>
+                    Durum: ${item.durum}<br>
+                    Öneri: ${item.oneri}
+                </div>
+            `;
+        });
+    } catch (e) { container.innerHTML = 'Yüklenemedi.'; }
+}
+
+// PERFORMANS RAPORU
+async function loadPerformanceReport() {
+    const container = document.getElementById('belediye-results');
+    try {
+        const res = await fetch(`${API_BASE}/belediye/performans-raporu`);
+        const data = await res.json();
+        container.innerHTML = '<h3>Performans Raporu</h3>';
+        const report = data.performans_raporu;
+        container.innerHTML += `
+            <div class="result-item">
+                <strong>Toplam Tesis:</strong> ${report.toplam_tesis}<br>
+                <strong>Toplam Rezervasyon:</strong> ${report.toplam_rezervasyon}<br>
+                <strong>Aktif Rezervasyon:</strong> ${report.aktif_rezervasyon}<br>
+                <strong>Sistem Durumu:</strong> ${report.sistem_durumu}<br>
+                <strong>Son Güncelleme:</strong> ${new Date(report.son_guncelleme).toLocaleString('tr-TR')}
+            </div>
+        `;
+    } catch (e) { container.innerHTML = 'Yüklenemedi.'; }
+}
+
+// MODEL YENİDEN EĞİTİMİ
+async function retrainModel() {
+    const container = document.getElementById('belediye-results');
+    container.innerHTML = '<h3>Model Yeniden Eğitimi</h3><p>Model eğitimi başlatılıyor...</p>';
+    try {
+        const res = await fetch(`${API_BASE}/belediye/model-egitim`, { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'success') {
+            container.innerHTML += '<div class="result-item" style="color: #28a745;">✅ Model başarıyla yeniden eğitildi!</div>';
+        } else {
+            container.innerHTML += '<div class="result-item" style="color: #dc3545;">❌ Model eğitimi başarısız.</div>';
+        }
+    } catch (e) {
+        container.innerHTML += '<div class="result-item" style="color: #dc3545;">Hata: ' + e.message + '</div>';
+    }
+}
+
+// GÜNLÜK İSTATİSTİKLER
+async function loadDailyStats() {
+    const container = document.getElementById('belediye-results');
+    try {
+        const res = await fetch(`${API_BASE}/belediye/gunluk-istatistikler`);
+        const data = await res.json();
+        container.innerHTML = '<h3>Günlük İstatistikler</h3>';
+        const stats = data.gunluk_istatistikler;
+        container.innerHTML += `
+            <div class="result-item">
+                <strong>Tarih:</strong> ${stats.tarih}<br>
+                <strong>Günlük Rezervasyon:</strong> ${stats.gunluk_rezervasyon}<br>
+                <strong>Günlük Giriş:</strong> ${stats.gunluk_giris}<br>
+                <strong>En Popüler Tesis:</strong> ${stats.en_populer_tesis}
+            </div>
+        `;
+    } catch (e) { container.innerHTML = 'Yüklenemedi.'; }
+}
+
+// TESİS QR YÖNETİMİ
+async function manageFacilityQRs() {
+    const container = document.getElementById('belediye-results');
+    try {
+        const res = await fetch(`${API_BASE}/belediye/tesis-qr-yonetimi`);
+        const data = await res.json();
+        container.innerHTML = '<h3>Tesis QR Yönetimi</h3>';
+        data.tesis_qr_yonetimi.forEach(qr => {
+            container.innerHTML += `
+                <div class="result-item">
+                    <strong>${qr.tesis_adi}</strong><br>
+                    QR Kod: ${qr.qr_kod}<br>
+                    Durum: ${qr.aktif ? 'Aktif' : 'Pasif'}
+                </div>
+            `;
         });
     } catch (e) { container.innerHTML = 'Yüklenemedi.'; }
 }

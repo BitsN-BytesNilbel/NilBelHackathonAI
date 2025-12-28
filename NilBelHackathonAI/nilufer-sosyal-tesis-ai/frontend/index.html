@@ -7,22 +7,27 @@
     <title>Nilüfer Sosyal Tesis AI - Vatandaş Platformu</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 
 <body>
     <div class="container">
         <section id="auth-panel" class="controls" style="max-width: 450px; margin: 80px auto; text-align: center;">
-            <h2 style="margin-bottom: 20px; color: #764ba2;">🏛️ Üye Girişi</h2>
+            <h2 style="margin-bottom: 20px; color: #764ba2;">🏛️ Sistem Girişi</h2>
+            <p style="margin-bottom: 20px; color: #666; font-size: 14px;">
+                Vatandaş girişi için: vatandas@gmail.com / 12345<br>
+                Belediye girişi için: admin@nilufer.bel.tr / nilufer16
+            </p>
             <div class="control-group">
-                <label>Nickname:</label>
-                <input type="text" id="username" placeholder="Nickname giriniz...">
+                <label>E-posta:</label>
+                <input type="email" id="email" placeholder="E-posta adresinizi girin...">
             </div>
             <div class="control-group" style="margin-top: 15px;">
                 <label>Şifre:</label>
-                <input type="password" id="password" placeholder="Şifre giriniz...">
+                <input type="password" id="password" placeholder="Şifrenizi girin...">
             </div>
-            <button onclick="handleLogin()" style="width: 100%; margin-top: 25px; padding: 15px;">Giriş Yap / Kayıt
-                Ol</button>
+            <button onclick="handleLogin()" style="width: 100%; margin-top: 25px; padding: 15px;">Giriş Yap</button>
+            <p id="login-error" style="margin-top: 15px; color: #dc3545; display: none;"></p>
         </section>
 
         <div id="main-app" style="display: none;">
@@ -33,10 +38,11 @@
             </header>
 
             <nav class="nav-tabs">
-                <button class="tab-btn active" onclick="showTab('akilli-siralama', event)">Akıllı Öneriler</button>
-                <button class="tab-btn" onclick="showTab('tum-tesisler', event)">Tüm Tesisler</button>
-                <button class="tab-btn" onclick="showTab('qr-giris', event)">QR Giriş</button>
-                <button class="tab-btn" onclick="showTab('rezervasyonlar', event)">Rezervasyonlarım</button>
+                <button class="tab-btn active" onclick="showTab('akilli-siralama')">Akıllı Öneriler</button>
+                <button class="tab-btn" onclick="showTab('tum-tesisler')">Tüm Tesisler</button>
+                <button class="tab-btn" onclick="showTab('qr-giris')">QR Giriş (Vatandaş)</button>
+                <button class="tab-btn" onclick="showTab('rezervasyonlar')">Rezervasyonlarım</button>
+                <button class="tab-btn" id="belediye-tab" onclick="showTab('belediye-yonetimi')" style="display: none;">Belediye Yönetimi</button>
             </nav>
 
             <main>
@@ -74,8 +80,8 @@
 
                 <section id="qr-giris" class="tab-content">
                     <div class="controls" style="text-align: center;">
-                        <h2>📷 QR Kod Okutun</h2>
-                        <p style="margin-bottom: 20px; color: #666;">Tesis girişindeki kodu kameraya gösterin</p>
+                        <h2>📷 Tesis Giriş QR Okuyucu</h2>
+                        <p style="margin-bottom: 20px; color: #666;">Tesis kapısındaki QR kodu okutarak giriş yapın.</p>
                         <div id="reader"
                             style="width: 100%; max-width: 500px; margin: 0 auto; border-radius: 15px; overflow: hidden; border: 2px solid #764ba2;">
                         </div>
@@ -111,6 +117,30 @@
                         <div id="rezervasyon-results" class="results-container"></div>
                     </div>
                 </section>
+
+                <section id="belediye-yonetimi" class="tab-content">
+                    <div class="controls">
+                        <h3>🏛️ Belediye Yönetim Paneli</h3>
+                        <div class="control-row">
+                            <button onclick="loadAllReservations()">Tüm Rezervasyonları Göster</button>
+                            <button onclick="loadReservationStats()">Rezervasyon İstatistikleri</button>
+                        </div>
+                        <div class="control-row" style="margin-top: 15px;">
+                            <button onclick="loadBalancingAnalysis()">Yük Dengeleme Analizi</button>
+                            <button onclick="loadPerformanceReport()">Performans Raporu</button>
+                            <button onclick="retrainModel()">Model Yeniden Eğitimi</button>
+                        </div>
+                        <div class="control-row" style="margin-top: 15px;">
+                            <button onclick="loadDailyStats()">Günlük İstatistikler</button>
+                            <button onclick="manageFacilityQRs()">Tesis QR Yönetimi</button>
+                        </div>
+                    </div>
+                    <div class="results">
+                        <h2>📊 Sistem Yönetimi</h2>
+                        <div id="belediye-results" class="results-container"></div>
+                    </div>
+                </section>
+
             </main>
         </div>
     </div>

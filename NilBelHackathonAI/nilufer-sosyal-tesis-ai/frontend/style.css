@@ -123,15 +123,18 @@ button:hover {
     gap: 20px;
 }
 
-.tesis-card {
+.tesis-card,
+.result-item {
     background: #f8f9fa;
     padding: 20px;
     border-radius: 15px;
     border-left: 6px solid #28a745;
     transition: 0.3s;
+    margin-bottom: 15px;
 }
 
-.tesis-card:hover {
+.tesis-card:hover,
+.result-item:hover {
     transform: translateY(-5px);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
