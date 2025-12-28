@@ -1,10 +1,32 @@
 // 1. Backend adresimizi en başa yazıyoruz
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = "http://127.0.0.1:8001";
 const API_BASE = API_URL; // İsim karmaşasını önlemek için eşitledik
 let userNickname = null;
 let html5QrScanner = null;
 
-// Sayfa yüklendiğinde hiçbir şey yapma, giriş sonrası veri çekilecek
+// TESİS TÜRÜ -> ÖNCELİKLİ MEKAN HARİTASI (SADECE EK)
+const TESIS_TUR_HARITA = {
+    "kütüphane": [
+        "Nilbel Koza Kütüphanesi",
+        "Şiir Kütüphanesi",
+        "Akkılıç Kütüphanesi"
+    ],
+    "kafe": [
+        "29 Ekim Kafe",
+        "Kafe Pancar",
+        "Nilüfer Kent Lokantası"
+    ],
+    "müze": [
+        "Nilüfer Fotoğraf Müzesi",
+        "Sağlık Müzesi",
+        "Edebiyat Müzesi"
+    ],
+    "gençlik merkezi": [
+        "Beşevler Gençlik Merkezi",
+        "Altınşehir Gençlik Merkezi",
+        "Cumhuriyet Gençlik Merkezi"
+    ]
+};
 
 // 1. GİRİŞ SİSTEMİ
 async function handleLogin() {
@@ -32,18 +54,8 @@ async function handleLogin() {
             document.getElementById('main-app').style.display = 'block';
             document.getElementById('display-name').textContent = email;
 
-            // Admin kontrolü ve UI özelleştirme
-            const isAdmin = email === 'admin@nilufer.bel.tr';
-            localStorage.setItem('userRole', isAdmin ? 'admin' : 'citizen');
-
-            if (isAdmin) {
-                // Admin için vatandaş sekmelerini gizle
-                document.querySelector('button[onclick="showTab(\'akilli-siralama\')"]').style.display = 'none';
-                document.querySelector('button[onclick="showTab(\'tum-tesisler\')"]').style.display = 'none';
-                document.querySelector('button[onclick="showTab(\'qr-giris\')"]').style.display = 'none';
-                document.querySelector('button[onclick="showTab(\'rezervasyonlar\')"]').style.display = 'none';
-
-                // Belediye sekmesini göster ve aktif yap
+            // Admin için belediye panelini göster
+            if (email === 'admin@nilufer.bel.tr') {
                 document.getElementById('belediye-tab').style.display = 'inline-block';
                 showTab('belediye-yonetimi');
             } else {
@@ -62,114 +74,56 @@ async function handleLogin() {
     }
 }
 
-// 2. TESİS LİSTESİ (Dropdown Düzeltmesi)
-async function loadTesisler() {
-    const select = document.getElementById('rez-tesis-id');
-    try {
-        const res = await fetch(`${API_BASE}/tesisler`);
-        const data = await res.json();
-
-        select.innerHTML = '<option value="">Seçim yapınız...</option>';
-        data.forEach(t => {
-            let opt = document.createElement('option');
-            opt.value = t.tesis_id;
-            opt.textContent = t.isim;
-            select.appendChild(opt);
-        });
-    } catch (e) {
-        select.innerHTML = '<option value="">Hata: Veri alınamadı</option>';
-    }
-}
-
-// 3. QR OKUYUCU (Frontend Entegrasyonu)
-function startScanner() {
-    if (html5QrScanner) return; 
-
-    html5QrScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-
-    html5QrScanner.render((decodedText) => {
-        document.getElementById('qr-status-text').textContent = "⏳ İşleniyor...";
-
-        fetch(`${API_BASE}/qr/entry`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                user_id: userNickname,
-                tesis_id: parseInt(decodedText)
-            })
-        })
-        .then(r => r.json())
-        .then(data => {
-            alert(data.status === "success" ? "✅ " + data.message : "❌ " + data.message);
-            document.getElementById('qr-status-text').textContent = data.status === "success" ? "✅ Giriş Yapıldı!" : "❌ Giriş Reddedildi";
-        })
-        .catch(err => alert("Hata: Backend'e ulaşılamadı."));
-    });
-}
-
-// 4. TAB SİSTEMİ
-function showTab(tabId, event) {
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-
-    document.getElementById(tabId).classList.add('active');
-    if(event) event.currentTarget.classList.add('active');
-
-    if (tabId === 'qr-giris') {
-        startScanner();
-    }
-}
-
-// 5. TÜM TESİS TAHMİNLERİ (Sadeleştirilmiş)
-async function getTumTesislerTahmin() {
-    const container = document.getElementById('tum-tesis-results');
-    try {
-        const res = await fetch(`${API_BASE}/tum-tesisler-tahmin`);
-        const data = await res.json();
-        container.innerHTML = '';
-
-        data.forEach(t => {
-            const dolulukYuzde = (t.doluluk_orani * 100).toFixed(0);
-            container.innerHTML += `
-                <div class="result-item" style="border-left: 5px solid ${t.doluluk_orani > 0.7 ? '#ff4b2b' : '#28a745'}">
-                    <h3>🏛️ ${t.isim}</h3>
-                    <p><strong>Tahmini Doluluk:</strong> %${dolulukYuzde}</p>
-                    <p><strong>Durum:</strong> ${t.durum} | 🌡️ ${t.sicaklik}</p>
-                </div>`;
-        });
-    } catch (e) {
-        container.innerHTML = '<p style="color:red;">Veriler backendden çekilemedi.</p>';
-    }
-}
-
-// 6. Konum alma
-function getLocation() {
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(p => {
-            document.getElementById('location-btn').textContent = "✅ Konum Alındı";
-            document.getElementById('location-btn').style.background = "#28a745";
-        });
-    }
-}
-
-// 6. AKILLI SIRALAMA (Vatandaş Konumuna Göre)
+// 6. AKILLI SIRALAMA (SADECE EK YAPILDI)
 async function getAkıllıSiralama() {
     const resultsContainer = document.getElementById('akilli-results');
+    const secilenTur = document.getElementById('tesis-tercih').value;
     resultsContainer.innerHTML = "⏳ En uygun tesisler hesaplanıyor...";
 
     navigator.geolocation.getCurrentPosition(async (position) => {
         const { latitude, longitude } = position.coords;
         try {
-            const res = await fetch(`${API_BASE}/akilli-siralama?lat=${latitude}&lon=${longitude}`);
+            // Eğer bir tesis türü seçildiyse, sadece o türü iste
+            let url = `${API_BASE}/akilli-siralama?lat=${latitude}&lon=${longitude}`;
+            if (secilenTur) {
+                url += `&tercih_edilen_tur=${encodeURIComponent(secilenTur)}`;
+            }
+
+            const res = await fetch(url);
             const data = await res.json();
-            resultsContainer.innerHTML = '';
-            data.oneriler.forEach(o => {
+
+            let oneriler = data.oneriler;
+
+            // 🔥 EKLENEN AKILLI ÖNCELİKLENDİRME - GELİŞTİRİLMİŞ
+            if (secilenTur && TESIS_TUR_HARITA[secilenTur]) {
+                const oncelikliListe = TESIS_TUR_HARITA[secilenTur];
+
+                // Öncelikli tesisleri bul ve sırala
+                const oncelikliTesisler = [];
+                oncelikliListe.forEach(priorityTesis => {
+                    const found = oneriler.find(o => o.tesis_adi === priorityTesis);
+                    if (found) {
+                        oncelikliTesisler.push(found);
+                    }
+                });
+
+                // Geri kalan tesisleri bul
+                const digerTesisler = oneriler.filter(o => !oncelikliListe.includes(o.tesis_adi));
+
+                // Birleştir: önce öncelikli tesisler, sonra diğerleri
+                oneriler = [...oncelikliTesisler, ...digerTesisler];
+            }
+
+            // SIRALAYARAK YAZDIR
+            resultsContainer.innerHTML = "";
+            oneriler.forEach((o, index) => {
                 resultsContainer.innerHTML += `
                     <div class="result-item">
-                        <strong>${o.sira}. ${o.tesis_adi}</strong>
+                        <strong>${index + 1}. ${o.tesis_adi}</strong>
                         <p>💡 ${o.siralama_nedeni}</p>
                     </div>`;
             });
+
         } catch (e) {
             resultsContainer.innerHTML = '<p style="color:red;">Sıralama verisi alınamadı.</p>';
         }
@@ -249,8 +203,6 @@ async function loadReservationStats() {
         }
     } catch (e) { container.innerHTML = 'Yüklenemedi.'; }
 }
-
-
 
 
 
