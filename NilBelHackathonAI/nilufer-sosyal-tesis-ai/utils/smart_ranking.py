@@ -110,9 +110,9 @@ class SmartRanking:
         return ranked[:top_n]
 
     def _calculate_factors(self, tesis: Dict, doluluk_orani: float,
-                          user_location: Tuple[float, float],
-                          preferred_types: List[str],
-                          current_time: datetime) -> Dict:
+                        user_location: Tuple[float, float],
+                        preferred_types: List[str],
+                        current_time: datetime) -> Dict:
         """Farklı sıralama faktörlerini hesapla"""
 
         factors = {}
