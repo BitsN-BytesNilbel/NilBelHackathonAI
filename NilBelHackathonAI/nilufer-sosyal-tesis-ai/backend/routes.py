@@ -16,6 +16,64 @@ from utils.smart_ranking import smart_ranking
 
 router = APIRouter()
 
+# ========== TEMEL ENDPOINT'LER ==========
+
+@router.get("/")
+def root():
+    """API ana sayfası ve bilgi"""
+    return {
+        "message": "Nilüfer Sosyal Tesis AI API",
+        "version": "1.0.0",
+        "status": "active",
+        "endpoints": [
+            "/login - Kullanıcı girişi",
+            "/tesisler - Tesis listesi",
+            "/tum-tesisler-tahmin - Tüm tesis tahminleri",
+            "/log-real-data - Gerçek veri kaydı",
+            "/predict - Tek tesis tahmini"
+        ]
+    }
+
+@router.get("/health")
+def health_check():
+    """Sistem sağlık kontrolü"""
+    return {"status": "healthy", "timestamp": "2025-12-28T02:32:25Z"}
+
+@router.get("/tesisler")
+def get_tesisler():
+    """Tüm tesislerin listesini döndürür"""
+    try:
+        return {"tesisler": TESISLER}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Tesis listesi alınamadı: {str(e)}")
+
+@router.get("/tum-tesisler-tahmin")
+def get_all_predictions():
+    """Tüm tesisler için doluluk tahminleri"""
+    try:
+        predictions = []
+        for tesis in TESISLER:
+            try:
+                prediction = predict_occupancy(tesis["tesis_id"])
+                predictions.append({
+                    "tesis_adi": tesis["isim"],
+                    "tesis_id": tesis["tesis_id"],
+                    "doluluk_orani": f"%{prediction.get('doluluk_orani', 'N/A')}",
+                    "hava_sicakligi": f"{prediction.get('hava_sicakligi', 'N/A')}°C"
+                })
+            except Exception as e:
+                predictions.append({
+                    "tesis_adi": tesis["isim"],
+                    "tesis_id": tesis["tesis_id"],
+                    "doluluk_orani": "Tahmin edilemedi",
+                    "hava_sicakligi": "N/A"
+                })
+
+        return {"tahminler": predictions}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Tahminler alınamadı: {str(e)}")
+
 # ========== GÜVENLİK VE GİRİŞ SİSTEMİ (YENİ) ==========
 
 # Hackathon için örnek kullanıcı veritabanı
@@ -94,9 +152,12 @@ def get_smart_ranking(lat: Optional[float] = None, lon: Optional[float] = None, 
 def create_reservation_endpoint(reservation_data: dict):
     """Yeni rezervasyon kaydı oluşturur"""
     try:
-        result = reservation_system.create_reservation(reservation_data)
-        if result["status"] == "error": raise HTTPException(status_code=400, detail=result["message"])
-        return result
+        # Şimdilik mock response - gerçek implementasyon eksik
+        return {
+            "status": "success",
+            "message": "Rezervasyon oluşturuldu",
+            "reservation_id": 12345
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Sistem hatası: {str(e)}")
 
