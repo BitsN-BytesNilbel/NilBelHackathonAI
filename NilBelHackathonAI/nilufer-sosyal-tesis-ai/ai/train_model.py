@@ -32,8 +32,21 @@ def train_hybrid_model():
     # 2. Gerçek veriyi yükle
     real_df = None
     if os.path.exists(REAL_DATA_PATH):
-        real_df = pd.read_csv(REAL_DATA_PATH)
-        print(f"Gerçek veri yüklendi: {len(real_df)} kayıt")
+        try:
+            real_df = pd.read_csv(REAL_DATA_PATH)
+            # Veri formatını kontrol et
+            required_cols = {"tesis_id", "saat", "sicaklik", "doluluk_orani"}
+            if not required_cols.issubset(set(real_df.columns)):
+                print(f"UYARI: Gerçek veri formatı uyumsuz, atlanıyor. Gerekli sütunlar: {required_cols}")
+                real_df = None
+            elif len(real_df) == 0:
+                print(f"BİLGİ: Gerçek veri dosyası boş, atlanıyor")
+                real_df = None
+            else:
+                print(f"Gerçek veri yüklendi: {len(real_df)} kayıt")
+        except Exception as e:
+            print(f"HATA: Gerçek veri okunamadı: {e}, atlanıyor")
+            real_df = None
     else:
         print(f"BİLGİ: Gerçek veri henüz yok, sadece sentetik veri ile eğitim yapılacak")
 
@@ -90,8 +103,8 @@ def train_hybrid_model():
     y = combined_df[TARGET]
 
     # 5. Veri temizliği
-    # NaN değerleri doldur
-    X = X.fillna(X.mean())
+    # NaN değerleri doldur (sadece sayısal sütunlar için)
+    X = X.fillna(X.mean(numeric_only=True))
     y = y.fillna(y.mean())
 
     print(f"Eğitim verisi: {len(X)} örnek, {len(FEATURES)} özellik")

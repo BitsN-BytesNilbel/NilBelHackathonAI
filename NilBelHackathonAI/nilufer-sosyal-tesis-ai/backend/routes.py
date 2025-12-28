@@ -212,24 +212,7 @@ async def get_reservation_stats():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"İstatistik getirme hatası: {str(e)}")
 
-@router.get("/belediye/yuk-dengeleme")
-async def get_load_balancing_analysis():
-    try:
-        # Basit yük dengeleme analizi: tesislerin doluluk oranlarına göre
-        from utils.tesisler import TESISLER
-        analysis = []
-        for tesis in TESISLER:
-            prediction = predict_occupancy(tesis["tesis_id"])
-            analysis.append({
-                "tesis_id": tesis["tesis_id"],
-                "tesis_adi": tesis["isim"],
-                "doluluk_orani": prediction.get("doluluk", 0.5),
-                "durum": prediction.get("durum", "Bilinmiyor"),
-                "oneri": "Yüksek doluluk" if prediction.get("doluluk", 0) > 0.8 else "Normal"
-            })
-        return {"yuk_dengeleme_analizi": analysis}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Yük dengeleme analizi hatası: {str(e)}")
+
 
 @router.get("/belediye/performans-raporu")
 async def get_performance_report():

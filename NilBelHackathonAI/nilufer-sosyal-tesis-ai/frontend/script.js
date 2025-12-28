@@ -1,5 +1,5 @@
 // 1. Backend adresimizi en başa yazıyoruz
-const API_URL = "http://127.0.0.1:8001";
+const API_URL = "http://127.0.0.1:8000";
 const API_BASE = API_URL; // İsim karmaşasını önlemek için eşitledik
 let userNickname = null;
 let html5QrScanner = null;
@@ -32,14 +32,26 @@ async function handleLogin() {
             document.getElementById('main-app').style.display = 'block';
             document.getElementById('display-name').textContent = email;
 
-            // Admin için belediye panelini göster
-            if (email === 'admin@nilufer.bel.tr') {
-                document.getElementById('belediye-tab').style.display = 'inline-block';
-            }
+            // Admin kontrolü ve UI özelleştirme
+            const isAdmin = email === 'admin@nilufer.bel.tr';
+            localStorage.setItem('userRole', isAdmin ? 'admin' : 'citizen');
 
-            loadUserReservations();
-            loadTesisler();
-            getTumTesislerTahmin();
+            if (isAdmin) {
+                // Admin için vatandaş sekmelerini gizle
+                document.querySelector('button[onclick="showTab(\'akilli-siralama\')"]').style.display = 'none';
+                document.querySelector('button[onclick="showTab(\'tum-tesisler\')"]').style.display = 'none';
+                document.querySelector('button[onclick="showTab(\'qr-giris\')"]').style.display = 'none';
+                document.querySelector('button[onclick="showTab(\'rezervasyonlar\')"]').style.display = 'none';
+
+                // Belediye sekmesini göster ve aktif yap
+                document.getElementById('belediye-tab').style.display = 'inline-block';
+                showTab('belediye-yonetimi');
+            } else {
+                // Vatandaş için normal akış
+                loadUserReservations();
+                loadTesisler();
+                getTumTesislerTahmin();
+            }
         } else {
             errorEl.textContent = "Giriş başarısız: " + data.message;
             errorEl.style.display = 'block';
@@ -237,6 +249,8 @@ async function loadReservationStats() {
         }
     } catch (e) { container.innerHTML = 'Yüklenemedi.'; }
 }
+
+
 
 
 
