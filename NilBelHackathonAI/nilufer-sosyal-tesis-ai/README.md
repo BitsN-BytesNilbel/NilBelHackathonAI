@@ -22,6 +22,8 @@ Proje üç ana bileşenden oluşmaktadır:
 - **12 Tesis**: Kütüphaneler, müzeler, gençlik merkezleri, kafeler ve lokanta
 - **AI Tahmin**: Multi-Linear Regression ile %70+ doğruluk
 - **Hava Durumu**: OpenWeatherMap entegrasyonu
+- **İnteraktif Harita**: Leaflet.js ile tesis konumları
+- **Konum Servisleri**: GPS ile kullanıcı konum takibi
 - **Web Arayüzü**: Modern, responsive frontend
 - **REST API**: FastAPI ile backend servisleri
 - **3 Kişilik Takım**: Backend, AI, Frontend ayrımı

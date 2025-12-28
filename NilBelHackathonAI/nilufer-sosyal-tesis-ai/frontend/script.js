@@ -2,6 +2,10 @@ const API_BASE = 'http://localhost:8000';
 let userEmail = null;
 let userRole = null;
 let html5QrScanner = null;
+let map = null;
+let userLocationMarker = null;
+let allMarkers = [];
+let currentFilter = '';
 
 // 1. GİRİŞ SİSTEMİ - BACKEND İLE ENTEGRASYON
 async function handleLogin() {
@@ -241,30 +245,61 @@ async function loadTesisler() {
     }
 }
 
-// 3. QR OKUYUCU (Frontend Entegrasyonu)
+// 3. QR OKUYUCU (Frontend Entegrasyonu) - GERÇEK VERİ LOGLAMA İLE
 function startScanner() {
     if (html5QrScanner) return; // Zaten çalışıyorsa tekrar başlatma
 
     html5QrScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
 
     html5QrScanner.render((decodedText) => {
-        // QR okunduğunda backend'e yolla
-        document.getElementById('qr-status-text').textContent = "⏳ İşleniyor...";
+        // QR kod içeriği: "TESIS_{tesis_id}_{doluluk_orani}" formatında olmalı
+        // Örnek: "TESIS_1_75.5"
+        document.getElementById('qr-status-text').textContent = "⏳ QR kod işleniyor...";
 
-        fetch(`${API_BASE}/qr-scan`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                tesis_id: parseInt(decodedText),
-                qr_data: `QR_SCAN_${Date.now()}`
-            })
-        })
-            .then(r => r.json())
-            .then(data => {
-                alert("Giriş Başarılı: " + (data.message || "Tesis girişi yapıldı."));
-                document.getElementById('qr-status-text').textContent = "✅ Giriş Yapıldı!";
-            })
-            .catch(err => alert("Hata: Backend'e ulaşılamadı."));
+        try {
+            const parts = decodedText.split('_');
+            if (parts.length >= 3 && parts[0] === 'TESIS') {
+                const tesis_id = parseInt(parts[1]);
+                const doluluk_orani = parseFloat(parts[2]);
+
+                if (isNaN(tesis_id) || isNaN(doluluk_orani)) {
+                    throw new Error('Geçersiz QR kod formatı');
+                }
+
+                // Gerçek veri loglama endpoint'ini kullan
+                fetch(`${API_BASE}/log-real-data`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tesis_id: tesis_id,
+                        doluluk_orani: doluluk_orani
+                    })
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            document.getElementById('qr-status-text').textContent = `✅ ${data.tesis} - Veri kaydedildi!`;
+                            // 2 saniye sonra mesajı temizle
+                            setTimeout(() => {
+                                document.getElementById('qr-status-text').textContent = "📷 QR kod bekleniyor...";
+                            }, 2000);
+                        } else {
+                            document.getElementById('qr-status-text').textContent = `❌ Hata: ${data.message}`;
+                        }
+                    })
+                    .catch(err => {
+                        console.error('QR log error:', err);
+                        document.getElementById('qr-status-text').textContent = "❌ Backend bağlantı hatası!";
+                    });
+
+            } else {
+                document.getElementById('qr-status-text').textContent = "❌ Geçersiz QR kod formatı!";
+            }
+
+        } catch (error) {
+            console.error('QR parse error:', error);
+            document.getElementById('qr-status-text').textContent = "❌ QR kod okunamadı!";
+        }
     });
 }
 
@@ -303,11 +338,187 @@ async function getTumTesislerTahmin() {
     }
 }
 
-// Konum alma
+// ========== HARİTA SİSTEMİ ==========
+
+// Harita renkleri (tesis türlerine göre)
+const markerColors = {
+    'kütüphane': 'blue',
+    'müze': 'red',
+    'kafe': 'green',
+    'lokanta': 'purple',
+    'gençlik merkezi': 'orange'
+};
+
+// Harita başlatma
+function initializeMap() {
+    if (map) return; // Zaten başlatılmışsa
+
+    // Bursa merkezli harita oluştur
+    map = L.map('map-container').setView([40.1821, 29.0677], 12); // Bursa koordinatları
+
+    // OpenStreetMap tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Tesis işaretlerini ekle
+    loadTesisMarkers();
+}
+
+// Tesis işaretlerini yükle
+async function loadTesisMarkers() {
+    try {
+        const response = await fetch(`${API_BASE}/tesisler`);
+        const data = await response.json();
+
+        data.tesisler.forEach(tesis => {
+            if (tesis.koordinat) {
+                const markerColor = markerColors[tesis.tesis_tipi] || 'blue';
+
+                // Özel marker icon'u oluştur
+                const icon = L.divIcon({
+                    className: 'custom-marker',
+                    html: `<div style="background-color: ${markerColor}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>`,
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                });
+
+                const marker = L.marker([tesis.koordinat.lat, tesis.koordinat.lng], { icon: icon })
+                    .addTo(map)
+                    .bindPopup(`
+                        <div style="font-family: Arial, sans-serif; max-width: 200px;">
+                            <h4 style="margin: 0 0 8px 0; color: #333;">${tesis.isim}</h4>
+                            <p style="margin: 0 0 4px 0;"><strong>Tür:</strong> ${tesis.tesis_tipi}</p>
+                            <p style="margin: 0 0 4px 0;"><strong>Kapasite:</strong> ${tesis.kapasite} kişi</p>
+                            <p style="margin: 0 0 8px 0;"><strong>Adres:</strong> ${tesis.adres}</p>
+                            <p style="margin: 0; font-size: 12px; color: #666;">${tesis.aciklama}</p>
+                        </div>
+                    `);
+
+                // Marker'ı listeye ekle (filtreleme için)
+                marker.tesisType = tesis.tesis_tipi;
+                allMarkers.push(marker);
+            }
+        });
+
+    } catch (error) {
+        console.error('Tesis marker yükleme hatası:', error);
+    }
+}
+
+// Kullanıcı konumunu göster
+function showUserLocation() {
+    const btn = document.getElementById('user-location-btn');
+
+    if (!navigator.geolocation) {
+        alert('Tarayıcınız konum özelliğini desteklemiyor.');
+        return;
+    }
+
+    btn.textContent = '⏳ Konum alınıyor...';
+    btn.disabled = true;
+
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+
+            // Önceki marker'ı kaldır
+            if (userLocationMarker) {
+                map.removeLayer(userLocationMarker);
+            }
+
+            // Yeni marker ekle
+            const userIcon = L.divIcon({
+                className: 'user-marker',
+                html: `<div style="background-color: #ff6b6b; width: 25px; height: 25px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.4); position: relative;">
+                          <div style="position: absolute; top: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 8px solid #ff6b6b;"></div>
+                       </div>`,
+                iconSize: [25, 25],
+                iconAnchor: [12.5, 25]
+            });
+
+            userLocationMarker = L.marker([lat, lng], {
+                icon: userIcon,
+                title: 'Konumunuz'
+            })
+                .addTo(map)
+                .bindPopup('<div style="text-align: center;"><strong>📍 Siz buradasınız!</strong></div>');
+
+            // Haritayı konumunuza odakla
+            map.setView([lat, lng], 15);
+
+            btn.textContent = '✅ Konumunuz gösteriliyor';
+            btn.disabled = false;
+
+            // 5 saniye sonra buton metnini geri döndür
+            setTimeout(() => {
+                btn.textContent = '📍 Konumumu Göster';
+            }, 5000);
+
+        },
+        (error) => {
+            console.error('Konum alma hatası:', error);
+            alert('Konum alınamadı: ' + error.message);
+            btn.textContent = '❌ Konum alınamadı';
+            btn.disabled = false;
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 300000
+        }
+    );
+}
+
+// Harita filtreleme
+function filterMapMarkers() {
+    const filterValue = document.getElementById('map-filter').value;
+    currentFilter = filterValue;
+
+    allMarkers.forEach(marker => {
+        if (filterValue === '' || marker.tesisType === filterValue) {
+            if (!map.hasLayer(marker)) {
+                marker.addTo(map);
+            }
+        } else {
+            if (map.hasLayer(marker)) {
+                map.removeLayer(marker);
+            }
+        }
+    });
+}
+
+// TAB SİSTEMİ GÜNCELLEME - Harita sekmesi için
+function showTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+    document.getElementById(tabId).classList.add('active');
+    event.currentTarget.classList.add('active');
+
+    // Eğer QR sekmesine tıklandıysa kamerayı aç
+    if (tabId === 'qr-giris') {
+        startScanner();
+    }
+
+    // Eğer harita sekmesine tıklandıysa haritayı başlat
+    if (tabId === 'harita') {
+        setTimeout(() => {
+            initializeMap();
+        }, 100);
+    }
+}
+
+// Konum alma (güncellenmiş)
 function getLocation() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(p => {
             document.getElementById('location-btn').textContent = "✅ Konum Alındı";
+            // Harita varsa konum göster
+            if (map) {
+                showUserLocation();
+            }
         });
     }
 }

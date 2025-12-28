@@ -10,7 +10,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 # Mevcut importların korunması
 from ai.predict import predict_occupancy
 from utils.tesisler import TESISLER, get_tesis_by_id
-from utils.datalogger import log_qr_entry
+from utils.datalogger import log_qr_entry, log_real_data_entry
 from utils.data_aggregator import aggregator
 from ai.error_tracker import error_tracker
 from utils.smart_ranking import smart_ranking
@@ -71,6 +71,31 @@ def log_qr_batch(qr_data: list):
         return {"processed": len(results), "results": results}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Batch QR log hatası: {str(e)}")
+
+@router.post("/log-real-data")
+def log_real_data_endpoint(data: dict):
+    """
+    Kullanıcının istediği formatta gerçek veri kaydı
+    POST body: {"tesis_id": 1, "doluluk_orani": 75.5}
+    """
+    try:
+        tesis_id = data.get("tesis_id")
+        doluluk_orani = data.get("doluluk_orani")
+
+        if tesis_id is None or doluluk_orani is None:
+            raise HTTPException(status_code=400, detail="tesis_id ve doluluk_orani gerekli")
+
+        result = log_real_data_entry(tesis_id, doluluk_orani)
+
+        if result["status"] == "error":
+            raise HTTPException(status_code=400, detail=result["message"])
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Gerçek veri log hatası: {str(e)}")
 
 # ========== ANALİZ VE PERFORMANS ==========
 

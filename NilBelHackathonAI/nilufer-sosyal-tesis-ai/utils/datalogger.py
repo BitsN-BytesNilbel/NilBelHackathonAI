@@ -151,6 +151,91 @@ class DataLogger:
         except Exception as e:
             print(f"[DATA LOGGER] Retraining tetikleme hatası: {e}")
 
+    def log_real_data_entry(self, tesis_id: int, doluluk_orani: float):
+        """
+        Kullanıcının istediği formatta gerçek veri kaydı yapar
+        Format: tesis_id,tarih,saat,gun_adi,is_weekend,sicaklik,yagis,doluluk_orani
+
+        Args:
+            tesis_id (int): Tesis ID
+            doluluk_orani (float): Doluluk oranı
+
+        Returns:
+            dict: Kaydedilen veri bilgileri
+        """
+        try:
+            # Tesis kontrolü
+            tesis = get_tesis_by_id(tesis_id)
+            if not tesis:
+                raise ValueError(f"Tesis {tesis_id} bulunamadı")
+
+            # Zaman bilgilerini al
+            simdi = datetime.now()
+            tarih = simdi.date().isoformat()  # YYYY-MM-DD format
+            saat = simdi.hour
+            gun_adi = simdi.strftime('%A')  # Gün adı (Monday, Tuesday, etc.)
+            is_weekend = 1 if simdi.weekday() >= 5 else 0  # 0-4: weekday, 5-6: weekend
+
+            # Hava durumu
+            weather = get_weather_data()
+            sicaklik = weather.get("hava_sicakligi", 20.0)
+            yagis = weather.get("yagis_var", 0)
+
+            # CSV satırı oluştur (kullanıcının istediği format)
+            csv_row = [
+                tesis_id,
+                tarih,
+                saat,
+                gun_adi,
+                is_weekend,
+                round(sicaklik, 1),
+                int(yagis),
+                round(doluluk_orani, 1)
+            ]
+
+            # Dosya yoksa başlıklarla oluştur, varsa append et
+            dosya_yeni_mi = not os.path.exists(self.real_data_file)
+
+            with open(self.real_data_file, 'a', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+
+                # Dosya yeni ise başlıkları ekle
+                if dosya_yeni_mi:
+                    writer.writerow([
+                        'tesis_id', 'tarih', 'saat', 'gun_adi',
+                        'is_weekend', 'sicaklik', 'yagis', 'doluluk_orani'
+                    ])
+
+                # Veri satırını ekle
+                writer.writerow(csv_row)
+
+            print(f"[REAL DATA LOGGER] Tesis {tesis_id} için gerçek veri kaydedildi: {csv_row}")
+
+            # Retraining kontrolü
+            self._check_retraining_trigger()
+
+            return {
+                "status": "success",
+                "tesis": tesis["isim"],
+                "kaydedilen_veri": {
+                    "tesis_id": tesis_id,
+                    "tarih": tarih,
+                    "saat": saat,
+                    "gun_adi": gun_adi,
+                    "is_weekend": is_weekend,
+                    "sicaklik": sicaklik,
+                    "yagis": yagis,
+                    "doluluk_orani": doluluk_orani
+                }
+            }
+
+        except Exception as e:
+            print(f"[REAL DATA LOGGER] Hata: {e}")
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+
     def get_record_count(self):
         """Toplam kayıt sayısını döndürür"""
         try:
@@ -165,6 +250,10 @@ data_logger = DataLogger()
 def log_qr_entry(tesis_id, qr_data=None):
     """Kolay kullanım için global fonksiyon"""
     return data_logger.log_qr_entry(tesis_id, qr_data)
+
+def log_real_data_entry(tesis_id, doluluk_orani):
+    """Kullanıcının istediği formatta gerçek veri kaydı için global fonksiyon"""
+    return data_logger.log_real_data_entry(tesis_id, doluluk_orani)
 
 if __name__ == "__main__":
     # Test

@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nilüfer Sosyal Tesis AI - Vatandaş Platformu</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 
@@ -39,6 +41,7 @@
             <nav class="nav-tabs">
                 <button class="tab-btn active" onclick="showTab('akilli-siralama')">Akıllı Öneriler</button>
                 <button class="tab-btn" onclick="showTab('tum-tesisler')">Tüm Tesisler</button>
+                <button class="tab-btn" onclick="showTab('harita')">Harita</button>
                 <button class="tab-btn" onclick="showTab('qr-giris')">QR Giriş</button>
                 <button class="tab-btn" onclick="showTab('rezervasyonlar')">Rezervasyonlarım</button>
             </nav>
@@ -76,14 +79,76 @@
                     </div>
                 </section>
 
+                <section id="harita" class="tab-content">
+                    <div class="controls">
+                        <h3>🗺️ Tesis Haritası</h3>
+                        <p>Nilüfer ilçesindeki tüm sosyal tesisleri konumlarıyla birlikte görün</p>
+
+                        <div class="control-row">
+                            <div class="control-group">
+                                <label>Konumunuzu göster:</label>
+                                <button onclick="showUserLocation()" id="user-location-btn">📍 Konumumu Göster</button>
+                            </div>
+                            <div class="control-group">
+                                <label>Tesis türüne göre filtrele:</label>
+                                <select id="map-filter" onchange="filterMapMarkers()">
+                                    <option value="">Tümü</option>
+                                    <option value="kütüphane">Kütüphaneler</option>
+                                    <option value="müze">Müzeler</option>
+                                    <option value="kafe">Kafeler</option>
+                                    <option value="lokanta">Lokantalar</option>
+                                    <option value="gençlik merkezi">Gençlik Merkezleri</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="results">
+                        <div id="map-container" style="height: 500px; width: 100%; border-radius: 15px; border: 2px solid #667eea;"></div>
+
+                        <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                            <h4 style="margin: 0 0 10px 0; color: #495057;">📍 Harita Kullanım Kılavuzu</h4>
+                            <ul style="margin: 0; padding-left: 20px; color: #6c757d;">
+                                <li><strong>Mavi işaret:</strong> Kütüphaneler</li>
+                                <li><strong>Kırmızı işaret:</strong> Müzeler</li>
+                                <li><strong>Yeşil işaret:</strong> Kafeler</li>
+                                <li><strong>Mor işaret:</strong> Lokantalar</li>
+                                <li><strong>Turuncu işaret:</strong> Gençlik merkezleri</li>
+                                <li>İşaretlere tıklayarak tesis detaylarını görebilirsiniz</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
                 <section id="qr-giris" class="tab-content">
                     <div class="controls" style="text-align: center;">
-                        <h2>📷 QR Kod Okutun</h2>
-                        <p style="margin-bottom: 20px; color: #666;">Tesis girişindeki kodu kameraya gösterin</p>
+                        <h2>📷 QR Kod Tarama Sistemi</h2>
+                        <p style="margin-bottom: 10px; color: #666;">Tesis girişindeki QR kodları tarayarak gerçek zamanlı veri toplayın</p>
+
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left;">
+                            <h4 style="margin: 0 0 10px 0; color: #495057;">📋 QR Kod Formatı:</h4>
+                            <code style="background: white; padding: 8px; border-radius: 4px; display: block; font-family: monospace;">
+                                TESIS_{tesis_id}_{doluluk_orani}
+                            </code>
+                            <p style="margin: 10px 0 0 0; font-size: 14px; color: #6c757d;">
+                                <strong>Örnek:</strong> <code>TESIS_1_75.5</code> (1 numaralı tesis için %75.5 doluluk)
+                            </p>
+                        </div>
+
                         <div id="reader"
                             style="width: 100%; max-width: 500px; margin: 0 auto; border-radius: 15px; overflow: hidden; border: 2px solid #764ba2;">
                         </div>
-                        <div id="qr-status-text" style="margin-top: 15px; font-weight: bold; color: #28a745;"></div>
+                        <div id="qr-status-text" style="margin-top: 15px; font-weight: bold; color: #28a745;">📷 QR kod bekleniyor...</div>
+
+                        <div style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196f3;">
+                            <h4 style="margin: 0 0 10px 0; color: #1976d2;">ℹ️ Nasıl Çalışır?</h4>
+                            <ul style="text-align: left; margin: 0; padding-left: 20px; color: #424242;">
+                                <li>QR kod tarandığında tesis ID ve doluluk oranı çıkarılır</li>
+                                <li>Hava durumu ve zaman bilgileri otomatik eklenir</li>
+                                <li>Veri <code>gercek_ziyaretci.csv</code> dosyasına kaydedilir</li>
+                                <li>AI model bu gerçek verilerle sürekli öğrenir</li>
+                            </ul>
+                        </div>
                     </div>
                 </section>
 
