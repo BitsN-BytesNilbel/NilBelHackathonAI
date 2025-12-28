@@ -58,10 +58,9 @@ async function loadTesisler() {
         const data = await res.json();
 
         select.innerHTML = '<option value="">Seçim yapınız...</option>';
-        // Backend liste döndürdüğü için data.tesisler yerine direkt data kullanıyoruz
         data.forEach(t => {
             let opt = document.createElement('option');
-            opt.value = t.tesis_id; // Backend'den gelen anahtar ismiyle eşlendi
+            opt.value = t.tesis_id;
             opt.textContent = t.isim;
             select.appendChild(opt);
         });
@@ -117,7 +116,6 @@ async function getTumTesislerTahmin() {
         const data = await res.json();
         container.innerHTML = '';
 
-        // data.tahminler yerine direkt data kullanıyoruz, eksik nokta düzeltildi
         data.forEach(t => {
             const dolulukYuzde = (t.doluluk_orani * 100).toFixed(0);
             container.innerHTML += `
@@ -317,16 +315,17 @@ async function loadDailyStats() {
     } catch (e) { container.innerHTML = 'Yüklenemedi.'; }
 }
 
-// TESİS QR YÖNETİMİ
+// TESİS QR YÖNETİMİ - Tıklama Özelliği Eklendi
 async function manageFacilityQRs() {
     const container = document.getElementById('belediye-results');
     try {
         const res = await fetch(`${API_BASE}/belediye/tesis-qr-yonetimi`);
         const data = await res.json();
-        container.innerHTML = '<h3>Tesis QR Yönetimi</h3>';
+        container.innerHTML = '<h3>Tesis QR Yönetimi</h3><p style="font-size:12px; color:#666;">QR kodunu görmek için tesis adına tıklayın.</p>';
         data.tesis_qr_yonetimi.forEach(qr => {
+            // TIKLAMA ÖZELLİĞİ: onclick="openFacilityQR(...)" eklendi
             container.innerHTML += `
-                <div class="result-item">
+                <div class="result-item" onclick="openFacilityQR(${qr.tesis_id}, '${qr.tesis_adi}')" style="cursor:pointer; transition: 0.3s; border: 2px solid #eee;">
                     <strong>${qr.tesis_adi}</strong><br>
                     QR Kod: ${qr.qr_kod}<br>
                     Durum: ${qr.aktif ? 'Aktif' : 'Pasif'}
@@ -334,4 +333,32 @@ async function manageFacilityQRs() {
             `;
         });
     } catch (e) { container.innerHTML = 'Yüklenemedi.'; }
+}
+
+// --- EKSTRA EKLENEN QR MODAL FONKSİYONLARI ---
+
+function openFacilityQR(id, isim) {
+    const modal = document.getElementById('qr-modal');
+    const canvas = document.getElementById('qrcode-canvas');
+    
+    // Eski QR'ı temizle
+    canvas.innerHTML = "";
+    document.getElementById('modal-tesis-adi').innerText = isim;
+    document.getElementById('modal-tesis-id-text').innerText = "Tesis ID: " + id;
+
+    // QR Kütüphanesini kullanarak yeni QR Üret
+    new QRCode(canvas, {
+        text: id.toString(), // QR içine sadece Tesis ID yazılır
+        width: 200,
+        height: 200,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+    });
+
+    modal.style.display = "flex";
+}
+
+function closeQR() {
+    document.getElementById('qr-modal').style.display = "none";
 }

@@ -145,6 +145,24 @@
         </div>
     </div>
     <script src="script.js"></script>
+<div id="qr-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:white; padding:40px; border-radius:20px; text-align:center; position:relative; max-width:400px; width:90%; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+        
+        <span onclick="closeQR()" style="position:absolute; top:15px; right:20px; cursor:pointer; font-size:28px; color:#666; font-weight:bold;">&times;</span>
+        
+        <h2 id="modal-tesis-adi" style="margin-bottom:10px; color:#764ba2; font-family:sans-serif;"></h2>
+        <p id="modal-tesis-id-text" style="color:#999; margin-bottom:20px; font-size:14px;"></p>
+        
+        <div id="qrcode-canvas" style="background:white; padding:15px; display:inline-block; border:1px solid #eee; border-radius:10px;"></div>
+        
+        <div style="margin-top:25px; padding:15px; background:#f8f9fa; border-radius:10px;">
+            <p style="font-size:13px; color:#444; line-height:1.5;">
+                💡 <b>AI Veri Toplama Modu Aktif:</b><br>
+                Bu kod okutulduğunda; sıcaklık, saat ve doluluk verileri anlık olarak ML modeline iletilir.
+            </p>
+        </div>
+    </div>
+</div>
 </body>
 
 </html>
