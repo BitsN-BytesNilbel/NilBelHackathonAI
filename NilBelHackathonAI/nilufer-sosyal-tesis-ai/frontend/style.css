@@ -123,15 +123,18 @@ button:hover {
     gap: 20px;
 }
 
-.tesis-card {
+.tesis-card,
+.result-item {
     background: #f8f9fa;
     padding: 20px;
     border-radius: 15px;
     border-left: 6px solid #28a745;
     transition: 0.3s;
+    margin-bottom: 15px;
 }
 
-.tesis-card:hover {
+.tesis-card:hover,
+.result-item:hover {
     transform: translateY(-5px);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
@@ -142,102 +145,4 @@ button:hover {
 
 .tab-content.active {
     display: block;
-}
-
-/* Admin Panel Özel Stilleri */
-.admin-controls {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-    margin-top: 20px;
-}
-
-.admin-controls button {
-    padding: 15px;
-    font-size: 14px;
-    white-space: nowrap;
-}
-
-.doluluk-yuksek {
-    border-left-color: #dc3545 !important;
-}
-
-.doluluk-orta {
-    border-left-color: #ffc107 !important;
-}
-
-.doluluk-dusuk {
-    border-left-color: #28a745 !important;
-}
-
-/* Login Error */
-#login-error {
-    background: #f8d7da;
-    color: #721c24;
-    padding: 10px;
-    border-radius: 5px;
-    border: 1px solid #f5c6cb;
-    margin-top: 15px;
-}
-
-/* Harita Stilleri */
-.leaflet-container {
-    border-radius: 15px !important;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-}
-
-.custom-marker div {
-    transition: transform 0.2s ease;
-}
-
-.custom-marker:hover div {
-    transform: scale(1.2);
-}
-
-.user-marker div {
-    animation: pulse-user 2s infinite;
-}
-
-@keyframes pulse-user {
-    0% {
-        transform: scale(1);
-        opacity: 1;
-    }
-    50% {
-        transform: scale(1.1);
-        opacity: 0.8;
-    }
-    100% {
-        transform: scale(1);
-        opacity: 1;
-    }
-}
-
-/* Harita popup stilleri */
-.leaflet-popup-content-wrapper {
-    border-radius: 8px !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
-}
-
-.leaflet-popup-content {
-    margin: 0 !important;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .nav-tabs {
-        flex-direction: column;
-    }
-
-    .tab-btn {
-        width: 100%;
-    }
-
-    .admin-controls {
-        grid-template-columns: 1fr;
-    }
-
-    #map-container {
-        height: 300px !important;
-    }
 }

@@ -1,233 +1,68 @@
-const API_BASE = 'http://localhost:8000';
-let userEmail = null;
-let userRole = null;
+// 1. Backend adresimizi en başa yazıyoruz
+const API_URL = "http://127.0.0.1:8000";
+const API_BASE = API_URL; // İsim karmaşasını önlemek için eşitledik
+let userNickname = null;
 let html5QrScanner = null;
-let map = null;
-let userLocationMarker = null;
-let allMarkers = [];
-let currentFilter = '';
-let cachedTesisler = null; // Tesis verilerini cache'le
 
-// 1. GİRİŞ SİSTEMİ - BACKEND İLE ENTEGRASYON
+// Sayfa yüklendiğinde hiçbir şey yapma, giriş sonrası veri çekilecek
+
+// 1. GİRİŞ SİSTEMİ
 async function handleLogin() {
     const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const errorDiv = document.getElementById('login-error');
+    const pass = document.getElementById('password').value;
+    const errorEl = document.getElementById('login-error');
 
-    if (!email || !password) {
-        errorDiv.textContent = "Lütfen e-posta ve şifre girin!";
-        errorDiv.style.display = 'block';
+    if (!email || !pass) {
+        errorEl.textContent = "Lütfen tüm alanları doldurun!";
+        errorEl.style.display = 'block';
         return;
     }
 
     try {
         const response = await fetch(`${API_BASE}/login`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                email: email,
-                password: password
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: email, password: pass })
         });
-
         const data = await response.json();
 
-        if (response.ok && data.status === 'success') {
-            // Giriş başarılı
-            userEmail = email;
-            userRole = data.role;
-
-            // Giriş panelini gizle
+        if (data.status === 'success') {
+            userNickname = email;
             document.getElementById('auth-panel').style.display = 'none';
             document.getElementById('main-app').style.display = 'block';
+            document.getElementById('display-name').textContent = email;
 
-            // Kullanıcı bilgilerini göster
-            document.getElementById('display-name').textContent = email.split('@')[0];
+            // Admin kontrolü ve UI özelleştirme
+            const isAdmin = email === 'admin@nilufer.bel.tr';
+            localStorage.setItem('userRole', isAdmin ? 'admin' : 'citizen');
 
-            // Rol tabanlı sekme gösterimi
-            setupRoleBasedUI();
+            if (isAdmin) {
+                // Admin için vatandaş sekmelerini gizle
+                document.querySelector('button[onclick="showTab(\'akilli-siralama\')"]').style.display = 'none';
+                document.querySelector('button[onclick="showTab(\'tum-tesisler\')"]').style.display = 'none';
+                document.querySelector('button[onclick="showTab(\'qr-giris\')"]').style.display = 'none';
+                document.querySelector('button[onclick="showTab(\'rezervasyonlar\')"]').style.display = 'none';
 
-            // Uygulama başlayınca verileri çek
-            loadTesisler();
-            getTumTesislerTahmin();
-
-            console.log(`Giriş başarılı: ${userRole} rolü`);
-
-        } else {
-            // Giriş hatası
-            errorDiv.textContent = data.detail || "Giriş bilgileri hatalı!";
-            errorDiv.style.display = 'block';
-        }
-
-    } catch (error) {
-        console.error('Login error:', error);
-        errorDiv.textContent = "Sunucuya bağlanılamadı. Lütfen backend'in çalıştığından emin olun.";
-        errorDiv.style.display = 'block';
-    }
-}
-
-// 2. ROL TABANLI UI AYARLARI
-function setupRoleBasedUI() {
-    const navTabs = document.querySelector('.nav-tabs');
-
-    if (userRole === 'admin') {
-        // Belediye personeli için yönetim sekmesi ekle
-        const adminTab = document.createElement('button');
-        adminTab.className = 'tab-btn';
-        adminTab.textContent = 'Belediye Paneli';
-        adminTab.onclick = () => showTab('belediye-paneli');
-
-        navTabs.appendChild(adminTab);
-
-        // Belediye paneli içeriğini oluştur
-        createAdminPanel();
-    }
-}
-
-// 3. BELEDİYE YÖNETİM PANELİ OLUŞTUR
-function createAdminPanel() {
-    const adminSection = document.createElement('section');
-    adminSection.id = 'belediye-paneli';
-    adminSection.className = 'tab-content';
-
-    adminSection.innerHTML = `
-        <div class="controls">
-            <h3>🏛️ Belediye Yönetim Paneli</h3>
-            <div class="admin-controls">
-                <button onclick="getLoadBalancing()">⚖️ Yük Dengeleme Analizi</button>
-                <button onclick="getPerformanceReport()">📈 Performans Raporu</button>
-                <button onclick="triggerRetraining()">🔄 Model Yeniden Eğitimi</button>
-                <button onclick="getDailyStats()">📊 Günlük İstatistikler</button>
-            </div>
-        </div>
-
-        <div class="results">
-            <h2>📋 Yönetim Raporları</h2>
-            <div id="admin-results" class="results-container">
-                <div class="tesis-card">
-                    <h3>Belediye Yönetim Paneli</h3>
-                    <p>Yukarıdaki butonları kullanarak sistem analizi yapabilirsiniz.</p>
-                </div>
-            </div>
-        </div>
-    `;
-
-    document.querySelector('main').appendChild(adminSection);
-}
-
-// 4. BELEDİYE PANEL FONKSİYONLARI
-async function getLoadBalancing() {
-    const container = document.getElementById('admin-results');
-
-    try {
-        const response = await fetch(`${API_BASE}/belediye/yuk-dengeleme`);
-        const data = await response.json();
-
-        container.innerHTML = '<h3>⚖️ Yük Dengeleme Önerileri</h3>';
-
-        if (data.oneriler && data.oneriler.length > 0) {
-            data.oneriler.forEach(oneri => {
-                container.innerHTML += `
-                    <div class="tesis-card ${oneri.type === 'warning' ? 'doluluk-yuksek' : 'doluluk-dusuk'}">
-                        <h4>${oneri.tesis}</h4>
-                        <p>${oneri.message}</p>
-                        <small><strong>Öneri:</strong> ${oneri.action}</small>
-                    </div>
-                `;
-            });
-        } else {
-            container.innerHTML += '<p>Yük dengeleme önerisi bulunmuyor.</p>';
-        }
-
-    } catch (error) {
-        container.innerHTML = '<p style="color:red;">Yük dengeleme verisi alınamadı.</p>';
-    }
-}
-
-async function getPerformanceReport() {
-    const container = document.getElementById('admin-results');
-
-    try {
-        const response = await fetch(`${API_BASE}/performance`);
-        const data = await response.json();
-
-        container.innerHTML = `
-            <h3>📈 AI Model Performansı</h3>
-            <div class="tesis-card">
-                <h4>Genel İstatistikler</h4>
-                <p><strong>Toplam Tahmin:</strong> ${data.total_predictions || 0}</p>
-                <p><strong>Ortalama Hata:</strong> ${data.overall_stats?.average_error || 'N/A'}%</p>
-                <p><strong>Doğruluk:</strong> ${data.recent_performance?.accuracy_assessment || 'N/A'}</p>
-            </div>
-        `;
-
-    } catch (error) {
-        container.innerHTML = '<p style="color:red;">Performans raporu alınamadı.</p>';
-    }
-}
-
-async function triggerRetraining() {
-    const container = document.getElementById('admin-results');
-
-    if (!confirm('Model yeniden eğitimi başlatılsın mı? Bu işlem zaman alabilir.')) {
-        return;
-    }
-
-    container.innerHTML = '<div class="tesis-card">⏳ Model yeniden eğitiliyor...</div>';
-
-    try {
-        const response = await fetch(`${API_BASE}/retrain`);
-        const data = await response.json();
-
-        container.innerHTML = `
-            <div class="tesis-card doluluk-dusuk">
-                <h4>✅ Model Güncellendi</h4>
-                <p>${data.message || 'Model başarıyla yeniden eğitildi.'}</p>
-            </div>
-        `;
-
-    } catch (error) {
-        container.innerHTML = '<p style="color:red;">Model eğitimi başlatılamadı.</p>';
-    }
-}
-
-async function getDailyStats() {
-    const container = document.getElementById('admin-results');
-
-    try {
-        const response = await fetch(`${API_BASE}/daily-stats`);
-        const data = await response.json();
-
-        container.innerHTML = `
-            <h3>📊 Günlük Giriş İstatistikleri</h3>
-            <div class="tesis-card">
-                <h4>Bugünkü Özet</h4>
-                <p><strong>Toplam Giriş:</strong> ${data.total_entries}</p>
-                <p><strong>En Popüler Tesis:</strong> ${data.most_popular_facility || 'Yok'}</p>
-                <p><strong>Tarih:</strong> ${data.date}</p>
-            </div>
-        `;
-
-        // Tesis bazlı istatistikler
-        for (const [tesisId, count] of Object.entries(data.facility_breakdown || {})) {
-            if (count > 0) {
-                container.innerHTML += `
-                    <div class="tesis-card">
-                        <h4>Tesis ${tesisId}</h4>
-                        <p><strong>Giriş Sayısı:</strong> ${count}</p>
-                    </div>
-                `;
+                // Belediye sekmesini göster ve aktif yap
+                document.getElementById('belediye-tab').style.display = 'inline-block';
+                showTab('belediye-yonetimi');
+            } else {
+                // Vatandaş için normal akış
+                loadUserReservations();
+                loadTesisler();
+                getTumTesislerTahmin();
             }
+        } else {
+            errorEl.textContent = "Giriş başarısız: " + data.message;
+            errorEl.style.display = 'block';
         }
-
     } catch (error) {
-        container.innerHTML = '<p style="color:red;">Günlük istatistikler alınamadı.</p>';
+        errorEl.textContent = "Backend'e bağlanılamadı: " + error.message;
+        errorEl.style.display = 'block';
     }
 }
 
-// 2. TESİS LİSTESİ (Dropdown Düzeltmesi) - CACHE İLE OPTİMİZE
+// 2. TESİS LİSTESİ (Dropdown Düzeltmesi)
 async function loadTesisler() {
     const select = document.getElementById('rez-tesis-id');
 
@@ -243,9 +78,9 @@ async function loadTesisler() {
         }
 
         select.innerHTML = '<option value="">Seçim yapınız...</option>';
-        data.tesisler.forEach(t => {
+        data.forEach(t => {
             let opt = document.createElement('option');
-            opt.value = t.tesis_id || t.id;
+            opt.value = t.tesis_id;
             opt.textContent = t.isim;
             select.appendChild(opt);
         });
@@ -256,71 +91,38 @@ async function loadTesisler() {
 
 // 3. QR OKUYUCU (Frontend Entegrasyonu) - GERÇEK VERİ LOGLAMA İLE
 function startScanner() {
-    if (html5QrScanner) return; // Zaten çalışıyorsa tekrar başlatma
+    if (html5QrScanner) return; 
 
     html5QrScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
 
     html5QrScanner.render((decodedText) => {
-        // QR kod içeriği: "TESIS_{tesis_id}_{doluluk_orani}" formatında olmalı
-        // Örnek: "TESIS_1_75.5"
-        document.getElementById('qr-status-text').textContent = "⏳ QR kod işleniyor...";
+        document.getElementById('qr-status-text').textContent = "⏳ İşleniyor...";
 
-        try {
-            const parts = decodedText.split('_');
-            if (parts.length >= 3 && parts[0] === 'TESIS') {
-                const tesis_id = parseInt(parts[1]);
-                const doluluk_orani = parseFloat(parts[2]);
-
-                if (isNaN(tesis_id) || isNaN(doluluk_orani)) {
-                    throw new Error('Geçersiz QR kod formatı');
-                }
-
-                // Gerçek veri loglama endpoint'ini kullan
-                fetch(`${API_BASE}/log-real-data`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        tesis_id: tesis_id,
-                        doluluk_orani: doluluk_orani
-                    })
-                })
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            document.getElementById('qr-status-text').textContent = `✅ ${data.tesis} - Veri kaydedildi!`;
-                            // 2 saniye sonra mesajı temizle
-                            setTimeout(() => {
-                                document.getElementById('qr-status-text').textContent = "📷 QR kod bekleniyor...";
-                            }, 2000);
-                        } else {
-                            document.getElementById('qr-status-text').textContent = `❌ Hata: ${data.message}`;
-                        }
-                    })
-                    .catch(err => {
-                        console.error('QR log error:', err);
-                        document.getElementById('qr-status-text').textContent = "❌ Backend bağlantı hatası!";
-                    });
-
-            } else {
-                document.getElementById('qr-status-text').textContent = "❌ Geçersiz QR kod formatı!";
-            }
-
-        } catch (error) {
-            console.error('QR parse error:', error);
-            document.getElementById('qr-status-text').textContent = "❌ QR kod okunamadı!";
-        }
+        fetch(`${API_BASE}/qr/entry`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: userNickname,
+                tesis_id: parseInt(decodedText)
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            alert(data.status === "success" ? "✅ " + data.message : "❌ " + data.message);
+            document.getElementById('qr-status-text').textContent = data.status === "success" ? "✅ Giriş Yapıldı!" : "❌ Giriş Reddedildi";
+        })
+        .catch(err => alert("Hata: Backend'e ulaşılamadı."));
     });
 }
 
 // 4. TAB SİSTEMİ
-function showTab(tabId) {
+function showTab(tabId, event) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
 
     document.getElementById(tabId).classList.add('active');
-    event.currentTarget.classList.add('active');
+    if(event) event.currentTarget.classList.add('active');
 
-    // Eğer QR sekmesine tıklandıysa kamerayı aç
     if (tabId === 'qr-giris') {
         startScanner();
     }
@@ -334,12 +136,13 @@ async function getTumTesislerTahmin() {
         const data = await res.json();
         container.innerHTML = '';
 
-        data.tahminler.forEach(t => {
+        data.forEach(t => {
+            const dolulukYuzde = (t.doluluk_orani * 100).toFixed(0);
             container.innerHTML += `
-                <div class="tesis-card doluluk-dusuk">
-                    <h3>${t.tesis_adi}</h3>
-                    <p><strong>Tahmini Doluluk:</strong> ${t.doluluk_orani}</p>
-                    <p><strong>Sıcaklık:</strong> ${t.hava_sicakligi}</p>
+                <div class="result-item" style="border-left: 5px solid ${t.doluluk_orani > 0.7 ? '#ff4b2b' : '#28a745'}">
+                    <h3>🏛️ ${t.isim}</h3>
+                    <p><strong>Tahmini Doluluk:</strong> %${dolulukYuzde}</p>
+                    <p><strong>Durum:</strong> ${t.durum} | 🌡️ ${t.sicaklik}</p>
                 </div>`;
         });
     } catch (e) {
@@ -347,198 +150,203 @@ async function getTumTesislerTahmin() {
     }
 }
 
-// ========== HARİTA SİSTEMİ ==========
-
-// Harita renkleri (tesis türlerine göre)
-const markerColors = {
-    'kütüphane': 'blue',
-    'müze': 'red',
-    'kafe': 'green',
-    'lokanta': 'purple',
-    'gençlik merkezi': 'orange'
-};
-
-// Harita başlatma
-function initializeMap() {
-    if (map) return; // Zaten başlatılmışsa
-
-    // Bursa merkezli harita oluştur
-    map = L.map('map-container').setView([40.1821, 29.0677], 12); // Bursa koordinatları
-
-    // OpenStreetMap tile layer
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
-
-    // Tesis işaretlerini ekle
-    loadTesisMarkers();
-}
-
-// Tesis işaretlerini yükle - CACHE OPTİMİZE
-async function loadTesisMarkers() {
-    try {
-        // Cache'den veri al veya API'den çek
-        let data;
-        if (cachedTesisler) {
-            data = cachedTesisler;
-        } else {
-            const response = await fetch(`${API_BASE}/tesisler`);
-            data = await response.json();
-            cachedTesisler = data; // Cache'e kaydet
-        }
-
-        // Önceki marker'ları temizle
-        allMarkers.forEach(marker => map.removeLayer(marker));
-        allMarkers = [];
-
-        data.tesisler.forEach(tesis => {
-            if (tesis.koordinat) {
-                const markerColor = markerColors[tesis.tesis_tipi] || 'blue';
-
-                // Özel marker icon'u oluştur (performans için önceden hesapla)
-                const icon = L.divIcon({
-                    className: 'custom-marker',
-                    html: `<div style="background-color: ${markerColor}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>`,
-                    iconSize: [20, 20],
-                    iconAnchor: [10, 10]
-                });
-
-                const marker = L.marker([tesis.koordinat.lat, tesis.koordinat.lng], { icon: icon })
-                    .addTo(map)
-                    .bindPopup(`
-                        <div style="font-family: Arial, sans-serif; max-width: 200px;">
-                            <h4 style="margin: 0 0 8px 0; color: #333;">${tesis.isim}</h4>
-                            <p style="margin: 0 0 4px 0;"><strong>Tür:</strong> ${tesis.tesis_tipi}</p>
-                            <p style="margin: 0 0 4px 0;"><strong>Kapasite:</strong> ${tesis.kapasite} kişi</p>
-                            <p style="margin: 0 0 8px 0;"><strong>Adres:</strong> ${tesis.adres}</p>
-                            <p style="margin: 0; font-size: 12px; color: #666;">${tesis.aciklama}</p>
-                        </div>
-                    `);
-
-                // Marker'ı listeye ekle (filtreleme için)
-                marker.tesisType = tesis.tesis_tipi;
-                allMarkers.push(marker);
-            }
-        });
-
-    } catch (error) {
-        console.error('Tesis marker yükleme hatası:', error);
-    }
-}
-
-// Kullanıcı konumunu göster
-function showUserLocation() {
-    const btn = document.getElementById('user-location-btn');
-
-    if (!navigator.geolocation) {
-        alert('Tarayıcınız konum özelliğini desteklemiyor.');
-        return;
-    }
-
-    btn.textContent = '⏳ Konum alınıyor...';
-    btn.disabled = true;
-
-    navigator.geolocation.getCurrentPosition(
-        (position) => {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-
-            // Önceki marker'ı kaldır
-            if (userLocationMarker) {
-                map.removeLayer(userLocationMarker);
-            }
-
-            // Yeni marker ekle
-            const userIcon = L.divIcon({
-                className: 'user-marker',
-                html: `<div style="background-color: #ff6b6b; width: 25px; height: 25px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.4); position: relative;">
-                          <div style="position: absolute; top: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 8px solid #ff6b6b;"></div>
-                       </div>`,
-                iconSize: [25, 25],
-                iconAnchor: [12.5, 25]
-            });
-
-            userLocationMarker = L.marker([lat, lng], {
-                icon: userIcon,
-                title: 'Konumunuz'
-            })
-                .addTo(map)
-                .bindPopup('<div style="text-align: center;"><strong>📍 Siz buradasınız!</strong></div>');
-
-            // Haritayı konumunuza odakla
-            map.setView([lat, lng], 15);
-
-            btn.textContent = '✅ Konumunuz gösteriliyor';
-            btn.disabled = false;
-
-            // 5 saniye sonra buton metnini geri döndür
-            setTimeout(() => {
-                btn.textContent = '📍 Konumumu Göster';
-            }, 5000);
-
-        },
-        (error) => {
-            console.error('Konum alma hatası:', error);
-            alert('Konum alınamadı: ' + error.message);
-            btn.textContent = '❌ Konum alınamadı';
-            btn.disabled = false;
-        },
-        {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 300000
-        }
-    );
-}
-
-// Harita filtreleme
-function filterMapMarkers() {
-    const filterValue = document.getElementById('map-filter').value;
-    currentFilter = filterValue;
-
-    allMarkers.forEach(marker => {
-        if (filterValue === '' || marker.tesisType === filterValue) {
-            if (!map.hasLayer(marker)) {
-                marker.addTo(map);
-            }
-        } else {
-            if (map.hasLayer(marker)) {
-                map.removeLayer(marker);
-            }
-        }
-    });
-}
-
-// TAB SİSTEMİ GÜNCELLEME - Harita sekmesi için
-function showTab(tabId) {
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-
-    document.getElementById(tabId).classList.add('active');
-    event.currentTarget.classList.add('active');
-
-    // Eğer QR sekmesine tıklandıysa kamerayı aç
-    if (tabId === 'qr-giris') {
-        startScanner();
-    }
-
-    // Eğer harita sekmesine tıklandıysa haritayı başlat
-    if (tabId === 'harita') {
-        setTimeout(() => {
-            initializeMap();
-        }, 100);
-    }
-}
-
-// Konum alma (güncellenmiş)
+// 6. Konum alma
 function getLocation() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(p => {
             document.getElementById('location-btn').textContent = "✅ Konum Alındı";
-            // Harita varsa konum göster
-            if (map) {
-                showUserLocation();
-            }
+            document.getElementById('location-btn').style.background = "#28a745";
         });
     }
+}
+
+// 6. AKILLI SIRALAMA (Vatandaş Konumuna Göre)
+async function getAkıllıSiralama() {
+    const resultsContainer = document.getElementById('akilli-results');
+    resultsContainer.innerHTML = "⏳ En uygun tesisler hesaplanıyor...";
+
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+            const res = await fetch(`${API_BASE}/akilli-siralama?lat=${latitude}&lon=${longitude}`);
+            const data = await res.json();
+            resultsContainer.innerHTML = '';
+            data.oneriler.forEach(o => {
+                resultsContainer.innerHTML += `
+                    <div class="result-item">
+                        <strong>${o.sira}. ${o.tesis_adi}</strong>
+                        <p>💡 ${o.siralama_nedeni}</p>
+                    </div>`;
+            });
+        } catch (e) {
+            resultsContainer.innerHTML = '<p style="color:red;">Sıralama verisi alınamadı.</p>';
+        }
+    });
+}
+
+// 7. REZERVASYON OLUŞTURMA
+async function createReservation() {
+    const tesisId = document.getElementById('rez-tesis-id').value;
+    const tarih = document.getElementById('rez-tarih').value;
+    const saat = document.getElementById('rez-saat').value;
+
+    if (!tesisId || !tarih || !saat) return alert("Alanları doldurun!");
+
+    try {
+        const res = await fetch(`${API_BASE}/rezervasyon-olustur`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userNickname, tesis_id: parseInt(tesisId), tarih, saat })
+        });
+        if (res.ok) { alert("✅ Başarılı!"); loadUserReservations(); }
+    } catch (e) { alert("Hata!"); }
+}
+
+// 8. KULLANICI REZERVASYONLARINI YÜKLEME
+async function loadUserReservations() {
+    const container = document.getElementById('rezervasyon-results');
+    try {
+        const res = await fetch(`${API_BASE}/rezervasyonlarim/${userNickname}`);
+        const data = await res.json();
+        container.innerHTML = '';
+        if (data.rezervasyonlar.length === 0) {
+            container.innerHTML = '<p>Henüz rezervasyonunuz yok.</p>';
+            return;
+        }
+        data.rezervasyonlar.forEach(r => {
+            container.innerHTML += `<div class="result-item"><strong>${r.tesis_adi}</strong><br>${r.tarih} - Saat: ${r.saat}:00</div>`;
+        });
+    } catch (e) { container.innerHTML = 'Yüklenemedi.'; }
+}
+
+// 9. BELEDİYE FONKSİYONLARI
+async function loadAllReservations() {
+    const container = document.getElementById('belediye-results');
+    try {
+        const res = await fetch(`${API_BASE}/belediye/tum-rezervasyonlar`);
+        const data = await res.json();
+        container.innerHTML = '<h3>Tüm Rezervasyonlar</h3>';
+        if (data.tum_rezervasyonlar.length === 0) {
+            container.innerHTML += '<p>Henüz rezervasyon yok.</p>';
+            return;
+        }
+        data.tum_rezervasyonlar.forEach(r => {
+            container.innerHTML += `<div class="result-item"><strong>${r.tesis_adi}</strong><br>Kullanıcı: ${r.user_id}<br>${r.tarih} - Saat: ${r.saat}:00<br>Durum: ${r.durum}</div>`;
+        });
+    } catch (e) { container.innerHTML = 'Yüklenemedi.'; }
+}
+
+async function loadReservationStats() {
+    const container = document.getElementById('belediye-results');
+    try {
+        const res = await fetch(`${API_BASE}/belediye/istatistikler`);
+        const data = await res.json();
+        container.innerHTML = '<h3>Rezervasyon İstatistikleri</h3>';
+        const stats = data.istatistikler;
+        container.innerHTML += `
+            <div class="result-item">
+                <strong>Toplam Rezervasyon:</strong> ${stats.toplam_rezervasyon}<br>
+                <strong>Aktif Rezervasyon:</strong> ${stats.aktif_rezervasyon}<br>
+                <strong>İptal Rezervasyon:</strong> ${stats.iptal_rezervasyon}
+            </div>
+        `;
+        // Tesis bazlı istatistikler
+        container.innerHTML += '<h4>Tesis Bazlı İstatistikler</h4>';
+        for (const [tesisId, count] of Object.entries(stats.tesis_bazli)) {
+            container.innerHTML += `<div class="result-item"><strong>Tesis ${tesisId}:</strong> ${count} rezervasyon</div>`;
+        }
+    } catch (e) { container.innerHTML = 'Yüklenemedi.'; }
+}
+
+
+
+
+
+// PERFORMANS RAPORU
+async function loadPerformanceReport() {
+    const container = document.getElementById('belediye-results');
+    try {
+        const res = await fetch(`${API_BASE}/belediye/performans-raporu`);
+        const data = await res.json();
+        container.innerHTML = '<h3>Performans Raporu</h3>';
+        const report = data.performans_raporu;
+        container.innerHTML += `
+            <div class="result-item">
+                <strong>Toplam Tesis:</strong> ${report.toplam_tesis}<br>
+                <strong>Toplam Rezervasyon:</strong> ${report.toplam_rezervasyon}<br>
+                <strong>Aktif Rezervasyon:</strong> ${report.aktif_rezervasyon}<br>
+                <strong>Sistem Durumu:</strong> ${report.sistem_durumu}<br>
+                <strong>Son Güncelleme:</strong> ${new Date(report.son_guncelleme).toLocaleString('tr-TR')}
+            </div>
+        `;
+    } catch (e) { container.innerHTML = 'Yüklenemedi.'; }
+}
+
+
+
+// GÜNLÜK İSTATİSTİKLER
+async function loadDailyStats() {
+    const container = document.getElementById('belediye-results');
+    try {
+        const res = await fetch(`${API_BASE}/belediye/gunluk-istatistikler`);
+        const data = await res.json();
+        container.innerHTML = '<h3>Günlük İstatistikler</h3>';
+        const stats = data.gunluk_istatistikler;
+        container.innerHTML += `
+            <div class="result-item">
+                <strong>Tarih:</strong> ${stats.tarih}<br>
+                <strong>Günlük Rezervasyon:</strong> ${stats.gunluk_rezervasyon}<br>
+                <strong>Günlük Giriş:</strong> ${stats.gunluk_giris}<br>
+                <strong>En Popüler Tesis:</strong> ${stats.en_populer_tesis}
+            </div>
+        `;
+    } catch (e) { container.innerHTML = 'Yüklenemedi.'; }
+}
+
+// TESİS QR YÖNETİMİ - Tıklama Özelliği Eklendi
+async function manageFacilityQRs() {
+    const container = document.getElementById('belediye-results');
+    try {
+        const res = await fetch(`${API_BASE}/belediye/tesis-qr-yonetimi`);
+        const data = await res.json();
+        container.innerHTML = '<h3>Tesis QR Yönetimi</h3><p style="font-size:12px; color:#666;">QR kodunu görmek için tesis adına tıklayın.</p>';
+        data.tesis_qr_yonetimi.forEach(qr => {
+            // TIKLAMA ÖZELLİĞİ: onclick="openFacilityQR(...)" eklendi
+            container.innerHTML += `
+                <div class="result-item" onclick="openFacilityQR(${qr.tesis_id}, '${qr.tesis_adi}')" style="cursor:pointer; transition: 0.3s; border: 2px solid #eee;">
+                    <strong>${qr.tesis_adi}</strong><br>
+                    QR Kod: ${qr.qr_kod}<br>
+                    Durum: ${qr.aktif ? 'Aktif' : 'Pasif'}
+                </div>
+            `;
+        });
+    } catch (e) { container.innerHTML = 'Yüklenemedi.'; }
+}
+
+// --- EKSTRA EKLENEN QR MODAL FONKSİYONLARI ---
+
+function openFacilityQR(id, isim) {
+    const modal = document.getElementById('qr-modal');
+    const canvas = document.getElementById('qrcode-canvas');
+    
+    // Eski QR'ı temizle
+    canvas.innerHTML = "";
+    document.getElementById('modal-tesis-adi').innerText = isim;
+    document.getElementById('modal-tesis-id-text').innerText = "Tesis ID: " + id;
+
+    // QR Kütüphanesini kullanarak yeni QR Üret
+    new QRCode(canvas, {
+        text: id.toString(), // QR içine sadece Tesis ID yazılır
+        width: 200,
+        height: 200,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+    });
+
+    modal.style.display = "flex";
+}
+
+function closeQR() {
+    document.getElementById('qr-modal').style.display = "none";
 }

@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 
 <body>
@@ -41,9 +42,9 @@
             <nav class="nav-tabs">
                 <button class="tab-btn active" onclick="showTab('akilli-siralama')">Akıllı Öneriler</button>
                 <button class="tab-btn" onclick="showTab('tum-tesisler')">Tüm Tesisler</button>
-                <button class="tab-btn" onclick="showTab('harita')">Harita</button>
-                <button class="tab-btn" onclick="showTab('qr-giris')">QR Giriş</button>
+                <button class="tab-btn" onclick="showTab('qr-giris')">QR Giriş (Vatandaş)</button>
                 <button class="tab-btn" onclick="showTab('rezervasyonlar')">Rezervasyonlarım</button>
+                <button class="tab-btn" id="belediye-tab" onclick="showTab('belediye-yonetimi')" style="display: none;">Belediye Yönetimi</button>
             </nav>
 
             <main>
@@ -59,8 +60,10 @@
                                 <select id="tesis-tercih">
                                     <option value="">Tümü</option>
                                     <option value="kütüphane">Kütüphane</option>
+                                    <option value="müze">Müze</option>
                                     <option value="kafe">Kafe</option>
                                     <option value="lokanta">Lokanta</option>
+                                    <option value="gençlik merkezi">Gençlik Merkezi</option>
                                 </select>
                             </div>
                         </div>
@@ -122,19 +125,8 @@
 
                 <section id="qr-giris" class="tab-content">
                     <div class="controls" style="text-align: center;">
-                        <h2>📷 QR Kod Tarama Sistemi</h2>
-                        <p style="margin-bottom: 10px; color: #666;">Tesis girişindeki QR kodları tarayarak gerçek zamanlı veri toplayın</p>
-
-                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left;">
-                            <h4 style="margin: 0 0 10px 0; color: #495057;">📋 QR Kod Formatı:</h4>
-                            <code style="background: white; padding: 8px; border-radius: 4px; display: block; font-family: monospace;">
-                                TESIS_{tesis_id}_{doluluk_orani}
-                            </code>
-                            <p style="margin: 10px 0 0 0; font-size: 14px; color: #6c757d;">
-                                <strong>Örnek:</strong> <code>TESIS_1_75.5</code> (1 numaralı tesis için %75.5 doluluk)
-                            </p>
-                        </div>
-
+                        <h2>📷 Tesis Giriş QR Okuyucu</h2>
+                        <p style="margin-bottom: 20px; color: #666;">Tesis kapısındaki QR kodu okutarak giriş yapın.</p>
                         <div id="reader"
                             style="width: 100%; max-width: 500px; margin: 0 auto; border-radius: 15px; overflow: hidden; border: 2px solid #764ba2;">
                         </div>
@@ -180,10 +172,50 @@
                         <div id="rezervasyon-results" class="results-container"></div>
                     </div>
                 </section>
+
+                <section id="belediye-yonetimi" class="tab-content">
+                    <div class="controls">
+                        <h3>🏛️ Belediye Yönetim Paneli</h3>
+                        <div class="control-row">
+                            <button onclick="loadAllReservations()">Tüm Rezervasyonları Göster</button>
+                            <button onclick="loadReservationStats()">Rezervasyon İstatistikleri</button>
+                        </div>
+                        <div class="control-row" style="margin-top: 15px;">
+                            <button onclick="loadPerformanceReport()">Performans Raporu</button>
+                            <button onclick="loadDailyStats()">Günlük İstatistikler</button>
+                        </div>
+                        <div class="control-row" style="margin-top: 15px;">
+                            <button onclick="manageFacilityQRs()">Tesis QR Yönetimi</button>
+                        </div>
+                    </div>
+                    <div class="results">
+                        <h2>📊 Sistem Yönetimi</h2>
+                        <div id="belediye-results" class="results-container"></div>
+                    </div>
+                </section>
+
             </main>
         </div>
     </div>
     <script src="script.js"></script>
+<div id="qr-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:white; padding:40px; border-radius:20px; text-align:center; position:relative; max-width:400px; width:90%; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+        
+        <span onclick="closeQR()" style="position:absolute; top:15px; right:20px; cursor:pointer; font-size:28px; color:#666; font-weight:bold;">&times;</span>
+        
+        <h2 id="modal-tesis-adi" style="margin-bottom:10px; color:#764ba2; font-family:sans-serif;"></h2>
+        <p id="modal-tesis-id-text" style="color:#999; margin-bottom:20px; font-size:14px;"></p>
+        
+        <div id="qrcode-canvas" style="background:white; padding:15px; display:inline-block; border:1px solid #eee; border-radius:10px;"></div>
+        
+        <div style="margin-top:25px; padding:15px; background:#f8f9fa; border-radius:10px;">
+            <p style="font-size:13px; color:#444; line-height:1.5;">
+                💡 <b>AI Veri Toplama Modu Aktif:</b><br>
+                Bu kod okutulduğunda; sıcaklık, saat ve doluluk verileri anlık olarak ML modeline iletilir.
+            </p>
+        </div>
+    </div>
+</div>
 </body>
 
 </html>
