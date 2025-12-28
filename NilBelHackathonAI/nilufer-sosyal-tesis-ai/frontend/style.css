@@ -143,3 +143,54 @@ button:hover {
 .tab-content.active {
     display: block;
 }
+
+/* Admin Panel Özel Stilleri */
+.admin-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.admin-controls button {
+    padding: 15px;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.doluluk-yuksek {
+    border-left-color: #dc3545 !important;
+}
+
+.doluluk-orta {
+    border-left-color: #ffc107 !important;
+}
+
+.doluluk-dusuk {
+    border-left-color: #28a745 !important;
+}
+
+/* Login Error */
+#login-error {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #f5c6cb;
+    margin-top: 15px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .nav-tabs {
+        flex-direction: column;
+    }
+
+    .tab-btn {
+        width: 100%;
+    }
+
+    .admin-controls {
+        grid-template-columns: 1fr;
+    }
+}

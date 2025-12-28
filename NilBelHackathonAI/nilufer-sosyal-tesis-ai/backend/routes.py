@@ -1,11 +1,13 @@
-from fastapi import APIRouter, HTTPException, Query
-from typing import Optional
+from fastapi import APIRouter, HTTPException, Query, Body
+from typing import Optional, List
+from pydantic import BaseModel
 import sys
 import os
 
 # Yolları ayarla
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+# Mevcut importların korunması
 from ai.predict import predict_occupancy
 from utils.tesisler import TESISLER, get_tesis_by_id
 from utils.datalogger import log_qr_entry
@@ -16,6 +18,32 @@ from utils.events import event_manager
 from utils.reservations import reservation_system
 
 router = APIRouter()
+
+# ========== GÜVENLİK VE GİRİŞ SİSTEMİ (YENİ) ==========
+
+# Hackathon için örnek kullanıcı veritabanı
+USERS = {
+    "admin@nilufer.bel.tr": "nilufer16", # Belediye Personeli
+    "vatandas@gmail.com": "12345"        # Test Kullanıcısı
+}
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+@router.post("/login")
+async def login(data: LoginRequest):
+    """Kullanıcı girişi ve yetkilendirme"""
+    if data.email in USERS and USERS[data.email] == data.password:
+        return {
+            "status": "success", 
+            "message": "Giriş başarılı",
+            "role": "admin" if "nilufer" in data.email else "user"
+        }
+    else:
+        raise HTTPException(status_code=401, detail="E-posta veya şifre hatalı")
+
+# ========== QR VE VERİ YÖNETİMİ ==========
 
 @router.post("/qr-log")
 def log_qr_data(tesis_id: int, doluluk_orani: float, rezervasyon: Optional[int] = 0):
@@ -40,186 +68,66 @@ def log_qr_batch(qr_data: list):
                 }
             )
             results.append(result)
-
         return {"processed": len(results), "results": results}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Batch QR log hatası: {str(e)}")
 
+# ========== ANALİZ VE PERFORMANS ==========
+
 @router.get("/performance")
 def get_model_performance():
-    """Model performans raporunu döndürür"""
+    """Model performans raporu (Tahmin vs Gerçek)"""
     try:
         report = error_tracker.generate_performance_report()
         return report
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Performans raporu hatası: {str(e)}")
 
-@router.get("/error-trends")
-def get_error_trends(days: int = 7):
-    """Hata trendlerini döndürür"""
-    try:
-        trends = error_tracker.get_error_trends(days)
-        return trends
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Hata trendleri hatası: {str(e)}")
-
 @router.get("/retrain")
 def trigger_retrain():
-    """Manuel model yeniden eğitimi tetikler"""
+    """Gerçek verilerle modeli yeniden eğitir"""
     try:
         from ai.train_model import train_hybrid_model
         result = train_hybrid_model()
-        return {"status": "success", "message": "Model yeniden eğitildi"}
+        return {"status": "success", "message": "Model yeni verilerle güncellendi"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Retraining hatası: {str(e)}")
 
-@router.get("/data-stats")
-def get_data_stats():
-    """Veri istatistiklerini döndürür"""
-    try:
-        from utils.datalogger import data_logger
-
-        stats = {
-            "gercek_veri_kayitlari": data_logger.get_record_count(),
-            "sentetik_veri_dosyasi": os.path.exists(os.path.join(os.path.dirname(__file__), "..", "data", "sentetik_ziyaretci.csv")),
-            "model_dosyasi": os.path.exists(os.path.join(os.path.dirname(__file__), "..", "ai", "model.pkl")),
-            "hata_log_dosyasi": os.path.exists(os.path.join(os.path.dirname(__file__), "..", "data", "model_errors.json"))
-        }
-        return stats
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Veri istatistikleri hatası: {str(e)}")
-
-# ========== YENİ WPA ENDPOINT'LERİ ==========
+# ========== VATANDAŞ ODAKLI (WPA) ENDPOINT'LER ==========
 
 @router.get("/akilli-siralama")
-def get_smart_ranking(
-    lat: Optional[float] = None,
-    lon: Optional[float] = None,
-    tercih_edilen_tur: Optional[str] = None,
-    top_n: int = 5
-):
-    """Akıllı tesis sıralaması - Vatandaşlar için"""
+def get_smart_ranking(lat: Optional[float] = None, lon: Optional[float] = None, tercih_edilen_tur: Optional[str] = None):
+    """Doluluk ve konuma göre en uygun tesisleri önerir"""
     try:
-        user_location = (lat, lon) if lat and lon else None
-        preferred_types = [tercih_edilen_tur] if tercih_edilen_tur else None
-
-        rankings = smart_ranking.rank_facilities(
-            user_location=user_location,
-            preferred_types=preferred_types,
-            top_n=top_n
-        )
-
-        result = []
-        for rank in rankings:
-            result.append({
-                "sira": len(result) + 1,
-                "tesis_id": rank["tesis"]["tesis_id"],
-                "tesis_adi": rank["tesis"]["isim"],
-                "tesis_tipi": rank["tesis"]["tesis_tipi"],
-                "doluluk_orani": rank["prediction"]["doluluk"],
-                "hava_sicakligi": rank["prediction"]["sicaklik"],
-                "siralama_nedeni": rank["rank_reason"],
-                "kapasite": rank["tesis"]["kapasite"]
-            })
-
-        return {"oneriler": result}
-
+        rankings = smart_ranking.rank_facilities(user_location=(lat, lon) if lat and lon else None, preferred_types=[tercih_edilen_tur] if tercih_edilen_tur else None)
+        return {"oneriler": rankings}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Akıllı sıralama hatası: {str(e)}")
-
-@router.get("/etkinlikler")
-def get_events(date: Optional[str] = None, days: int = 7):
-    """Etkinlik listesi"""
-    try:
-        if date:
-            events = event_manager.get_active_events(date)
-        else:
-            events = event_manager.get_upcoming_events(days)
-
-        return {
-            "count": len(events),
-            "etkinlikler": events
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Etkinlik hatası: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Sıralama hatası: {str(e)}")
 
 @router.post("/rezervasyon-olustur")
 def create_reservation_endpoint(reservation_data: dict):
-    """Rezervasyon oluşturma"""
+    """Yeni rezervasyon kaydı oluşturur"""
     try:
         result = reservation_system.create_reservation(reservation_data)
-        if result["status"] == "error":
-            raise HTTPException(status_code=400, detail=result["message"])
+        if result["status"] == "error": raise HTTPException(status_code=400, detail=result["message"])
         return result
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Rezervasyon hatası: {str(e)}")
-
-@router.delete("/rezervasyon-iptal/{reservation_id}")
-def cancel_reservation_endpoint(reservation_id: str, user_id: str):
-    """Rezervasyon iptali"""
-    try:
-        result = reservation_system.cancel_reservation(reservation_id, user_id)
-        if result["status"] == "error":
-            raise HTTPException(status_code=400, detail=result["message"])
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Rezervasyon iptal hatası: {str(e)}")
-
-@router.get("/rezervasyonlarim/{user_id}")
-def get_user_reservations(user_id: str):
-    """Kullanıcının rezervasyonları"""
-    try:
-        reservations = reservation_system.get_user_reservations(user_id)
-        return {"rezervasyonlar": reservations}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Rezervasyon listesi hatası: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Sistem hatası: {str(e)}")
 
 # ========== BELEDİYE YÖNETİM PANELİ ==========
 
 @router.get("/belediye/yuk-dengeleme")
 def get_load_balancing():
-    """Belediye için yük dengeleme önerileri"""
+    """Belediye için tesisler arası yük dengeleme önerileri"""
     try:
-        recommendations = smart_ranking.get_load_balancing_recommendations()
-        return {"oneriler": recommendations}
+        return {"oneriler": smart_ranking.get_load_balancing_recommendations()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Yük dengeleme hatası: {str(e)}")
-
-@router.get("/belediye/istatistikler")
-def get_municipality_stats():
-    """Belediye için kapsamlı istatistikler"""
-    try:
-        # Temel istatistikler
-        total_capacity = sum(t["kapasite"] for t in TESISLER)
-
-        # Rezervasyon istatistikleri
-        reservation_stats = reservation_system.get_reservation_stats()
-
-        # Model performans
-        performance = error_tracker.generate_performance_report()
-
-        return {
-            "tesis_bilgileri": {
-                "toplam_tesis": len(TESISLER),
-                "toplam_kapasite": total_capacity,
-                "tesis_tipleri": list(set(t["tesis_tipi"] for t in TESISLER))
-            },
-            "rezervasyon_istatistikleri": reservation_stats,
-            "model_performans": performance,
-            "etkinlik_sayisi": len(event_manager.get_active_events())
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Belediye istatistikleri hatası: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/predict")
 def predict(tesis_id: int = 1, rezervasyon: int = 10, sinav_vakti: int = 0):
-    """Geriye uyumluluk için basit tahmin endpoint'i"""
+    """AI doluluk tahmini"""
     try:
-        result = predict_occupancy(tesis_id, rezervasyon, sinav_vakti)
-        return result
+        return predict_occupancy(tesis_id, rezervasyon, sinav_vakti)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Tahmin hatası: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -12,17 +12,21 @@
 <body>
     <div class="container">
         <section id="auth-panel" class="controls" style="max-width: 450px; margin: 80px auto; text-align: center;">
-            <h2 style="margin-bottom: 20px; color: #764ba2;">🏛️ Üye Girişi</h2>
+            <h2 style="margin-bottom: 20px; color: #764ba2;">🏛️ Sistem Girişi</h2>
+            <p style="margin-bottom: 20px; color: #666; font-size: 14px;">
+                Vatandaş girişi için: vatandas@gmail.com / 12345<br>
+                Belediye girişi için: admin@nilufer.bel.tr / nilufer16
+            </p>
             <div class="control-group">
-                <label>Nickname:</label>
-                <input type="text" id="username" placeholder="Nickname giriniz...">
+                <label>E-posta:</label>
+                <input type="email" id="email" placeholder="E-posta adresinizi girin...">
             </div>
             <div class="control-group" style="margin-top: 15px;">
                 <label>Şifre:</label>
-                <input type="password" id="password" placeholder="Şifre giriniz...">
+                <input type="password" id="password" placeholder="Şifrenizi girin...">
             </div>
-            <button onclick="handleLogin()" style="width: 100%; margin-top: 25px; padding: 15px;">Giriş Yap / Kayıt
-                Ol</button>
+            <button onclick="handleLogin()" style="width: 100%; margin-top: 25px; padding: 15px;">Giriş Yap</button>
+            <p id="login-error" style="margin-top: 15px; color: #dc3545; display: none;"></p>
         </section>
 
         <div id="main-app" style="display: none;">
