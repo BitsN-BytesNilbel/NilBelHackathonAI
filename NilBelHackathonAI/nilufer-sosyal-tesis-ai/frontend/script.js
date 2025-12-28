@@ -238,26 +238,7 @@ async function loadReservationStats() {
     } catch (e) { container.innerHTML = 'Yüklenemedi.'; }
 }
 
-// YÜK DENGELEME ANALİZİ
-async function loadBalancingAnalysis() {
-    const container = document.getElementById('belediye-results');
-    try {
-        const res = await fetch(`${API_BASE}/belediye/yuk-dengeleme`);
-        const data = await res.json();
-        container.innerHTML = '<h3>Yük Dengeleme Analizi</h3>';
-        data.yuk_dengeleme_analizi.forEach(item => {
-            const color = item.doluluk_orani > 0.8 ? '#ff4b2b' : item.doluluk_orani > 0.6 ? '#ffc107' : '#28a745';
-            container.innerHTML += `
-                <div class="result-item" style="border-left: 5px solid ${color}">
-                    <strong>${item.tesis_adi}</strong><br>
-                    Doluluk: %${(item.doluluk_orani * 100).toFixed(0)}<br>
-                    Durum: ${item.durum}<br>
-                    Öneri: ${item.oneri}
-                </div>
-            `;
-        });
-    } catch (e) { container.innerHTML = 'Yüklenemedi.'; }
-}
+
 
 // PERFORMANS RAPORU
 async function loadPerformanceReport() {
@@ -279,22 +260,7 @@ async function loadPerformanceReport() {
     } catch (e) { container.innerHTML = 'Yüklenemedi.'; }
 }
 
-// MODEL YENİDEN EĞİTİMİ
-async function retrainModel() {
-    const container = document.getElementById('belediye-results');
-    container.innerHTML = '<h3>Model Yeniden Eğitimi</h3><p>Model eğitimi başlatılıyor...</p>';
-    try {
-        const res = await fetch(`${API_BASE}/belediye/model-egitim`, { method: 'POST' });
-        const data = await res.json();
-        if (data.status === 'success') {
-            container.innerHTML += '<div class="result-item" style="color: #28a745;">✅ Model başarıyla yeniden eğitildi!</div>';
-        } else {
-            container.innerHTML += '<div class="result-item" style="color: #dc3545;">❌ Model eğitimi başarısız.</div>';
-        }
-    } catch (e) {
-        container.innerHTML += '<div class="result-item" style="color: #dc3545;">Hata: ' + e.message + '</div>';
-    }
-}
+
 
 // GÜNLÜK İSTATİSTİKLER
 async function loadDailyStats() {

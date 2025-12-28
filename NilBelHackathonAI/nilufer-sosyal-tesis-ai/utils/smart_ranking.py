@@ -52,7 +52,13 @@ class SmartRanking:
 
         facility_scores = []
 
-        for tesis in TESISLER:
+        # Kategori filtresi: Eğer tercih edilen tür varsa, sadece o türleri öner
+        if preferred_types and len(preferred_types) > 0:
+            filtered_tesisler = [t for t in TESISLER if t["tesis_tipi"] in preferred_types]
+        else:
+            filtered_tesisler = TESISLER
+
+        for tesis in filtered_tesisler:
             try:
                 # Doluluk tahmini al
                 prediction = predict_occupancy(tesis["tesis_id"])

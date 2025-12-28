@@ -130,10 +130,13 @@ def get_all_predictions():
         for tesis in TESISLER:
             try:
                 prediction = predict_occupancy(tesis["tesis_id"], rezervasyon=10, sinav_vakti=0)
+                # Doluluk oranını güvenli şekilde parse et
+                doluluk_str = prediction.get("doluluk", "0%")
+                doluluk_orani = float(doluluk_str.replace('%', '')) / 100.0 if '%' in doluluk_str else 0.0
                 results.append({
                     "tesis_id": tesis["tesis_id"],
                     "isim": tesis["isim"],
-                    "doluluk_orani": prediction.get("doluluk", 0.5),
+                    "doluluk_orani": doluluk_orani,
                     "durum": prediction.get("durum", "Müsait"),
                     "sicaklik": prediction.get("sicaklik", 20)
                 })
