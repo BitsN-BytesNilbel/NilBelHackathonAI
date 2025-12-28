@@ -52,8 +52,10 @@
                     <div class="controls">
                         <div class="control-row">
                             <div class="control-group">
-                                <label>Konum Al:</label>
-                                <button onclick="getLocation()" id="location-btn">📍 Konum Paylaş</button>
+                                <button onclick="getLocation()" id="location-btn" style="display:none;">
+    📍 Konum Paylaş
+</button>
+
                             </div>
                             <div class="control-group">
                                 <label>Tesis Türü:</label>
@@ -62,7 +64,6 @@
                                     <option value="kütüphane">Kütüphane</option>
                                     <option value="müze">Müze</option>
                                     <option value="kafe">Kafe</option>
-                                    <option value="lokanta">Lokanta</option>
                                     <option value="gençlik merkezi">Gençlik Merkezi</option>
                                 </select>
                             </div>
